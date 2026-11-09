@@ -117,16 +117,6 @@ public/   Landing page (index.html), dashboard (app.html), demo store, duck over
 extension/ Chrome MV3 extension
 ```
 
-## Limitations (honest)
-
-- **Sandbox only.** No real money moves. Ponds are an app ledger backed by sandbox payments to the demo merchant, not a bank or PayPal balance. A production version needs a regulated partner to hold goal money.
-- **Pondr only buys from the integrated demo merchant.** Channel3 results are market comparisons; buying from other retailers would need a merchant/platform arrangement.
-- The fun budget is user-declared, not inferred from bank data. "Fits your rules" is not a claim that the user can afford something.
-- Not built: PayPal Transaction Search insights, PayPal Agent Toolkit/MCP, WhatsApp.
-- Insights use seeded demo history for "Ana" plus real purchases made in the demo store.
-- The demo store's price changes are simulated so judges can see the agent act without waiting days.
-- One JSON file per demo session under `data/sessions/` (hackathon scope).
-
 ## License
 
 [MIT](LICENSE)
