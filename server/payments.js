@@ -1,11 +1,11 @@
 // Payment lifecycle. App state changes only after PayPal confirms a capture,
 // never on a browser redirect alone, and every apply is idempotent.
-import { config } from "./config.js";
+import { config, modes } from "./config.js";
 import * as paypal from "./paypal.js";
 import { getDb, save, log, id, activePond, product, mandateEvent, notify } from "./store.js";
-import { round2, mandateConditions } from "./money.js";
+import { round2, mandateConditions, daysOfSaving } from "./money.js";
 
-export const MERCHANT = "Pondr Demo Merchant (PayPal sandbox)";
+export const MERCHANT = modes.paypal === "sandbox" ? "Pondr Demo Merchant (PayPal sandbox)" : "Pondr Demo Merchant (mock PayPal, no keys)";
 
 const returnUrl = (pid) => `${config.baseUrl}/api/paypal/return?payment=${pid}`;
 const cancelUrl = (pid) => `${config.baseUrl}/api/paypal/cancel?payment=${pid}`;
@@ -161,9 +161,20 @@ export function applyCompleted(payment, captureId) {
   if (payment.kind === "pond") {
     // The goal pond is an app ledger entry backed by this sandbox payment; it is not a PayPal balance.
     const pond = db.ponds.find((p) => p.id === payment.pondId) || activePond();
+    const item = product(payment.productId)?.name;
+    // Record the consequence of the choice so the UI and follow-ups can show it truthfully.
+    Object.assign(payment, { goalName: pond.name, balanceBefore: pond.balance, target: pond.target, itemName: item || null, daysCloser: daysOfSaving(payment.amount) });
     pond.balance = round2(pond.balance + payment.amount);
-    log("ponded", `Ponded €${payment.amount} into ${pond.name} instead of buying ${product(payment.productId)?.name || "it"}`);
-    notify({ type: "ponded", amount: payment.amount, pond, captureId, item: product(payment.productId)?.name });
+    payment.balanceAfter = pond.balance;
+    log("ponded", `Ponded €${payment.amount} into ${pond.name}${item ? ` instead of buying ${item}` : ""}`);
+    // Follow-up grounded in the recorded event (not AI-generated, so it can't misstate what happened).
+    db.chat.push({
+      role: "assistant",
+      source: "record",
+      at: payment.completedAt,
+      text: `${item ? `You chose your ${pond.name} over the ${item}. ` : ""}Recorded contribution: €${payment.amount} (${modes.paypal === "sandbox" ? "PayPal sandbox" : "mock"} capture ${captureId}). Your ${pond.name} is now €${pond.balance} of €${pond.target}.${item ? ` Want me to keep an eye on the ${item} in case you still want them later, or let them go?` : ""}`,
+    });
+    notify({ type: "ponded", amount: payment.amount, pond, captureId, item, productId: payment.productId });
   } else if (payment.kind === "buy" || payment.kind === "mandate") {
     const item = product(payment.productId);
     db.transactions.unshift({

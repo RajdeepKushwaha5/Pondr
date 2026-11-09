@@ -49,12 +49,58 @@
       if (!pid) return;
       const { payment, pond } = await api(`/api/payments/${pid}`);
       const ok = payment.status === "completed";
+      if (ok && payment.kind === "pond" && payment.balanceAfter !== undefined) return goalMoment(payment);
       const title = ok ? (payment.kind === "pond" ? `${eur(payment.amount)} added to your ${esc(pond.name)} ledger.` : "Purchase complete.") : payment.status === "cancelled" ? "Payment cancelled." : "That didn't go through.";
       const sub = ok && payment.kind === "pond" ? `You pressed pay, and it went to your goal. Sandbox payment to ${esc(payment.payee || "Pondr Demo Merchant")}.` : esc(payment.description);
       document.getElementById("result").innerHTML = `<div class="notice">${PondrUI.duck(44, ok ? "happy" : "think")}
         <div><b style="font-family:var(--display);font-size:18px;letter-spacing:-.02em">${title}</b><div class="small muted">${sub}${payment.captureId ? ` · capture <code>${esc(payment.captureId)}</code>` : ""}</div></div>
         <span class="spacer"></span><a class="btn outline sm" href="/app.html">See my pond</a></div>`;
       history.replaceState(null, "", "/store.html");
+      render();
+    }
+
+
+    // The emotional payoff: the impulse became visible progress toward the goal.
+    function goalMoment(p) {
+      const from = Math.min(100, (p.balanceBefore / p.target) * 100);
+      const to = Math.min(100, (p.balanceAfter / p.target) * 100);
+      const box = document.getElementById("result");
+      box.innerHTML = `<section class="goal-moment">
+        <div class="gm-duck">${PondrUI.duck(84, "happy")}</div>
+        <div class="gm-body">
+          <span class="eyebrow">You chose your future</span>
+          <h2>${p.itemName ? `${esc(p.goalName)} over the ${esc(p.itemName)}.` : `${eur(p.amount)} toward ${esc(p.goalName)}.`}</h2>
+          <p class="gm-lede">You still pressed pay. The urge got its moment, and ${eur(p.amount)} got a purpose${p.daysCloser ? `: about <b>${p.daysCloser} days closer</b>` : ""}.</p>
+          <div class="gm-bar"><div class="gm-from" style="width:${from}%"></div><div class="gm-add" id="gmAdd" style="left:${from}%;width:0%"></div></div>
+          <div class="gm-nums"><span>${eur(p.balanceBefore)}</span><b id="gmNow">${eur(p.balanceBefore)}</b><span>of ${eur(p.target)}</span></div>
+          <div class="row" style="margin-top:16px">
+            ${p.itemName ? `<button class="btn dark" id="gmWatch">Keep an eye on the ${esc(p.itemName)}</button><button class="btn outline" id="gmGo">Let it go</button>` : ""}
+            <a class="btn outline" href="/app.html">See my goal</a>
+          </div>
+          <p class="small muted" style="margin:14px 0 0">Goal-contribution prototype: ${window.PONDR_MODES?.paypal === "sandbox" ? "PayPal sandbox" : "mock"} payment to ${esc(p.payee || "Pondr Demo Merchant")}, recorded in your goal ledger · capture <code>${esc(p.captureId)}</code></p>
+        </div></section>`;
+      history.replaceState(null, "", "/store.html");
+      requestAnimationFrame(() => setTimeout(() => {
+        document.getElementById("gmAdd").style.width = `${to - from}%`;
+        const start = performance.now(), dur = 1400;
+        const tick = (t) => {
+          const k = Math.min(1, (t - start) / dur), e = 1 - Math.pow(1 - k, 3);
+          document.getElementById("gmNow").textContent = eur(Math.round(p.balanceBefore + (p.balanceAfter - p.balanceBefore) * e));
+          if (k < 1) requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      }, 250));
+      const w = document.getElementById("gmWatch");
+      if (w) w.onclick = async () => {
+        const prod = (await getState()).products.find((x) => x.name === p.itemName);
+        try {
+          const m = await api("/api/mandates", { product_id: prod.id, max_price: Math.floor(prod.price * 0.85), cool_off_hours: 24 });
+          toast(`Watching: only at €${m.maxPrice} or less, after 24h, if it fits your fun budget.`);
+          w.disabled = true; w.textContent = "Watching it for you";
+        } catch (e) { toast(e.message); }
+      };
+      const g = document.getElementById("gmGo");
+      if (g) g.onclick = () => { toast("Let it go. Your goal keeps the win."); g.disabled = true; };
       render();
     }
 

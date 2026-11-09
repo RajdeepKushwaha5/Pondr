@@ -3,7 +3,7 @@
 // Uses long polling (no public webhook needed). Off when TELEGRAM_BOT_TOKEN is missing.
 import crypto from "node:crypto";
 import { getDb, save, log, withSession, sessionForTelegramChat, onNotify, currentSid, activePond, unlinkTelegramElsewhere } from "./store.js";
-import { chat, releaseMandate, confirmSetup } from "./agent.js";
+import { chat, releaseMandate, confirmSetup, createMandate } from "./agent.js";
 import { startOrder, cancel, findPayment } from "./payments.js";
 import { round2 } from "./money.js";
 
@@ -100,7 +100,11 @@ onNotify((e) => {
       send(t.chatId, `Watching ${e.mandate.productName}. ${e.note} I'll keep waiting.`, [[{ text: "Let it go", data: `release:${e.mandate.id}` }]]);
       break;
     case "ponded":
-      send(t.chatId, `${eur(e.amount)} ponded into ${pond.name}. You pressed pay, and it went to your goal.\nNow ${eur(pond.balance)} of ${eur(pond.target)} (${Math.round((pond.balance / pond.target) * 100)}%). PayPal capture ${e.captureId}.`);
+      send(
+        t.chatId,
+        `${e.item ? `You chose your ${pond.name} over the ${e.item}. ` : ""}${eur(e.amount)} recorded toward it.\nNow ${eur(pond.balance)} of ${eur(pond.target)} (${Math.round((pond.balance / pond.target) * 100)}%). PayPal sandbox capture ${e.captureId}.${e.item ? "\nWant me to keep an eye on it in case you still want it later?" : ""}`,
+        e.productId ? [[{ text: "Keep an eye on it", data: `watchitem:${e.productId}` }, { text: "Let it go", data: "noop:letgo" }]] : null
+      );
       break;
     case "bought":
       send(t.chatId, `Done: ${e.item} for ${eur(e.amount)}, approved by you in PayPal${e.priceDrop ? `, ${eur(e.priceDrop)} under your starting price` : ""}. Capture ${e.captureId}.`);
@@ -180,6 +184,13 @@ async function onCallback(q) {
     const db = getDb();
     try {
       if (data === "noop") return send(chatId, "No problem. I'll check in later.");
+      if (data === "noop:letgo") return send(chatId, "Let it go. Your goal keeps the win.");
+      if (data.startsWith("watchitem:")) {
+        const p = db.products.find((x) => x.id === data.slice(10));
+        if (!p) return;
+        const m = createMandate({ product_id: p.id, max_price: Math.floor(p.price * 0.85), cool_off_hours: 24 });
+        return send(chatId, `Watching ${m.productName}: I'll only prepare it at €${m.maxPrice} or less, after a 24h cooling-off, and only if it fits your fun budget. You approve before anything is paid.`);
+      }
       if (data.startsWith("release:")) {
         const m = db.mandates.find((x) => x.id === data.slice(8));
         if (!m) return;

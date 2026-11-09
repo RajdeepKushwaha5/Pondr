@@ -89,7 +89,7 @@ function renderChat() {
   const msgs = state.chat.length ? state.chat : [{ role: "assistant", text: `Hi ${state.user.name}, I'm Pondr. Ask me where your money went, or tell me something you want and I'll watch it for you.` }];
   log.innerHTML =
     msgs.map((m) => {
-      const tags = [...(m.tools || []), ...(m.source === "template" ? ["template reply · AI unavailable"] : [])];
+      const tags = [...(m.tools || []), ...(m.source === "template" ? ["template reply · AI unavailable"] : []), ...(m.source === "record" ? ["from your records"] : [])];
       return `<div class="msg ${m.role}">${esc(m.text)}${tags.length ? `<div class="tools">${tags.map((x) => `<span>${esc(x)}</span>`).join("")}</div>` : ""}</div>`;
     }).join("") +
     (pending ? `<div class="msg assistant"><span class="typing"><i></i><i></i><i></i></span></div>` : "");
