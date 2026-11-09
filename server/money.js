@@ -9,10 +9,18 @@ export function dailyPace() {
   return getDb().user.monthlySavingsPace / 30;
 }
 
-export function daysOfSaving(amount) {
+// Exact days of saving at the user's stated pace; null when no pace is set (don't invent an estimate).
+export function daysExact(amount) {
   const pace = dailyPace();
-  if (!pace || pace <= 0) return null; // unknown pace: don't show a misleading estimate
-  return Math.max(1, Math.round(amount / pace));
+  if (!pace || pace <= 0) return null;
+  return amount / pace;
+}
+
+// Display value: whole days, or 0 meaning "less than a day". Thresholds use daysExact, not this.
+export function daysOfSaving(amount) {
+  const d = daysExact(amount);
+  if (d === null) return null;
+  return d < 1 ? 0 : Math.round(d);
 }
 
 export function spendLast30(category) {
@@ -55,6 +63,8 @@ export function financeSnapshot(amount, item) {
     funBudget: budgetSnapshot(),
     item: item ? { name: item.name, category: item.category, price: amount } : undefined,
     daysOfSaving: amount ? daysOfSaving(amount) : undefined,
+    daysExact: amount ? daysExact(amount) : undefined,
+    savingPaceSource: db.setupConfirmedAt ? "you told Pondr" : "demo profile",
     pondProgressIfPonded: amount ? Math.round(((pond.balance + amount) / pond.target) * 100) : undefined,
     spentLast30: spendLast30(),
     spentLast30ByCategory: Object.fromEntries([...new Set(db.transactions.filter((t) => within30(t.date)).map((t) => t.category))].map((c) => [c, spendLast30(c)])),

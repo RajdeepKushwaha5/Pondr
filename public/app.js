@@ -40,8 +40,15 @@ function renderPond() {
   const perDay = state.user.monthlySavingsPace / 30;
   const daysLeft = perDay > 0 ? Math.ceil(Math.max(0, p.target - p.balance) / perDay) : null;
   const ponded = state.payments.filter((x) => x.kind === "pond" && x.status === "completed").reduce((s, x) => s + x.amount, 0);
+  if (p.placeholder) {
+    document.getElementById("pondMeta").innerHTML = `<span>No goal yet. Tell Pondr what you're saving for in the chat.</span>`;
+    document.getElementById("hello").innerHTML = `Hi there. What are you <span class="serif">saving</span> for?`;
+    document.getElementById("helloSub").textContent = "Tell Pondr your goal, what you've saved, and what you can put aside. It turns that into settings you confirm, then helps at checkout.";
+    return;
+  }
+  document.getElementById("helloSub").textContent = "Every impulse you pond moves you closer to your goal. Every watch turns a \"want\" into a planned buy.";
   document.getElementById("pondMeta").innerHTML =
-    `<span><b>${daysLeft ?? "–"}</b> days to go</span><span><b>${eur(state.user.monthlySavingsPace)}</b>/mo stated pace</span>${ponded ? `<span><b>${eur(ponded)}</b> ponded from impulses</span>` : ""}${p.pendingWithdrawal ? `<span style="color:var(--duck-deep)"><b>${eur(p.pendingWithdrawal)}</b> payout pending</span>` : ""}`;
+    `${p.startingBalance ? `<span><b>${eur(p.startingBalance.amount)}</b> start (you told Pondr)</span>` : ""}<span><b>${daysLeft ?? "–"}</b> days to go</span><span><b>${eur(state.user.monthlySavingsPace)}</b>/mo stated pace</span>${ponded ? `<span><b>${eur(ponded)}</b> ponded from impulses</span>` : ""}${p.pendingWithdrawal ? `<span style="color:var(--duck-deep)"><b>${eur(p.pendingWithdrawal)}</b> payout pending</span>` : ""}`;
   document.getElementById("payoutBtn").disabled = !!p.pendingWithdrawal || p.balance <= 0;
   document.getElementById("hello").innerHTML = `Hey ${esc(state.user.name)}. Think <span class="serif">before</span> you pay.`;
 }
@@ -126,10 +133,16 @@ function renderTelegram() {
   }
   if (t.linked) {
     el.innerHTML = `<p style="margin-top:0">${icon("check", 16)} Connected${t.name ? ` as <b>${esc(t.name)}</b>` : ""} to <b>@${esc(t.bot)}</b>.</p>
-      <p class="small muted">Pondr will message you first. Try /checkin, /pond 20 or just chat.</p>
+      <p class="small muted">Pondr messages you first when something happens. Try /checkin, /pond 20 or just chat.</p>
+      <label class="field" style="margin:10px 0">Scheduled check-ins
+        <select id="tgEvery"><option value="off">Off</option><option value="daily">Daily</option><option value="weekly">Weekly</option></select></label>
+      ${t.checkins?.nextAt ? `<p class="small muted" style="margin-top:-4px">Next check-in: ${new Date(t.checkins.nextAt).toLocaleString([], { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</p>` : ""}
       <div class="row"><button class="btn dark sm" id="tgCheckin">${icon("send", 14)} Send me a check-in</button><button class="btn outline sm" id="tgUnlink">Disconnect</button></div>`;
     document.getElementById("tgCheckin").onclick = async () => { try { await api("/api/telegram/checkin", {}); toast("Check-in sent to your phone"); } catch (e) { toast(e.message); } };
     document.getElementById("tgUnlink").onclick = async () => { await api("/api/telegram/unlink", {}); linkInfo = null; refresh(); };
+    const ev = document.getElementById("tgEvery");
+    ev.value = t.checkins?.every || "off";
+    ev.onchange = async () => { try { await api("/api/telegram/schedule", { every: ev.value }); toast(ev.value === "off" ? "Scheduled check-ins off" : `Pondr will check in ${ev.value}`); refresh(); } catch (e) { toast(e.message); } };
     return;
   }
   el.innerHTML = linkInfo
@@ -294,6 +307,14 @@ document.getElementById("skipBtn").onclick = async () => {
 
 document.getElementById("paydayBtn").onclick = async () => {
   try { await api("/api/demo/payday", {}); toast("Monthly cycle simulated"); refresh(); } catch (e) { toast(e.message); }
+};
+
+document.getElementById("freshBtn").onclick = async () => {
+  if (!confirm("Start over as a brand-new user with no goal or history? Your Telegram link is kept.")) return;
+  await api("/api/demo/fresh", {});
+  state = null;
+  refresh();
+  document.getElementById("chatInput").focus();
 };
 
 document.getElementById("resetBtn").onclick = async () => {

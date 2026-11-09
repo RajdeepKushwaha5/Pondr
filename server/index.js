@@ -6,7 +6,7 @@ import * as paypal from "./paypal.js";
 import { getDb, save, log, reset, id, activePond, product, withSession, sessionIds, newSessionId, validSessionId, sessionForOrder, sessionForSubscription, sessionForPayment } from "./store.js";
 import { startOrder, capture, cancel, findPayment, findPaymentByOrder, applyCompleted, requestPayout, refreshPayout, reconcile, MERCHANT } from "./payments.js";
 import { duckDecision, chat, createMandate, releaseMandate, watchTick, confirmSetup } from "./agent.js";
-import { startTelegram, telegram as telegramInfo, telegramStatus, createLinkCode, unlinkTelegram, sendCheckin } from "./telegram.js";
+import { startTelegram, telegram as telegramInfo, telegramStatus, createLinkCode, unlinkTelegram, sendCheckin, setCheckins, runDueCheckins } from "./telegram.js";
 import { daysOfSaving, spendLast30, recurringCharges, budgetSnapshot, mandateConditions, pondFor, round2 } from "./money.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -306,6 +306,10 @@ app.post(
   })
 );
 app.post(
+  "/api/telegram/schedule",
+  wrap((req, res) => res.json(setCheckins(String(req.body.every || "off"))))
+);
+app.post(
   "/api/telegram/checkin",
   wrap(async (req, res) => {
     await sendCheckin();
@@ -421,9 +425,11 @@ app.post(
       m.coolOffUntil = shift(m.coolOffUntil);
       m.deadline = shift(m.deadline);
     }
+    if (db.telegram?.checkins?.nextAt) db.telegram.checkins.nextAt = shift(db.telegram.checkins.nextAt);
     save();
     log("clock", "Simulated: one day passed");
     await watchTick();
+    await runDueCheckins();
     res.json({ mandates: db.mandates });
   })
 );
@@ -478,6 +484,14 @@ app.post(
 );
 
 app.post(
+  "/api/demo/fresh",
+  wrap((req, res) => {
+    reset({ fresh: true });
+    res.json({ ok: true });
+  })
+);
+
+app.post(
   "/api/demo/reset",
   wrap((req, res) => {
     reset();
@@ -493,6 +507,7 @@ setInterval(async () => {
     await withSession(sid, async () => {
       try {
         await watchTick();
+        await runDueCheckins();
         for (const p of getDb().payments.filter((x) => x.kind === "payout" && ["pending", "unknown"].includes(x.status))) await refreshPayout(p);
         for (const p of getDb().payments.filter((x) => x.kind !== "payout" && ["processing", "unknown", "capturing", "unresolved"].includes(x.status))) await reconcile(p);
         // Approved in PayPal but the return page never loaded (e.g. approved on a phone): capture now.

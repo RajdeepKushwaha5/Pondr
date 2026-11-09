@@ -1,5 +1,5 @@
 // Pondr checkout duck. Used by the demo store and the browser-extension frame.
-// PondrDuck.open({ productId }) for store items, or ({ amount, title, newTab }) for any page.
+// PondrDuck.open({ productId }) for store items, or ({ amount, title, newTab }) for external checkout pages.
 (function () {
   const { icon, duck } = window.PondrUI;
   const call = (path, body) =>
@@ -36,7 +36,8 @@
 
   const foot = (source) => {
     const pp = window.PONDR_MODES?.paypal === "sandbox" ? "PayPal sandbox" : "PayPal mock";
-    return `<div class="duck-foot">${icon("shield", 13)} Math by Pondr · words by ${source === "ai" ? window.PONDR_MODES?.aiName || "AI" : "templates"} · ${pp} · no real money</div>`;
+    const src = window.PONDR_STATE_SRC || "";
+    return `<div class="duck-foot">${icon("shield", 13)} ${src}Math by Pondr · words by ${source === "ai" ? window.PONDR_MODES?.aiName || "AI" : "templates"} · ${pp} · no real money</div>`;
   };
 
   async function open(opts) {
@@ -57,6 +58,7 @@
       return sheet(`<span class="eyebrow">Hmm</span><h3>Couldn't reach Pondr</h3><p>${h(err.message)}</p>`);
     }
     const item = d.item;
+    window.PONDR_STATE_SRC = d.facts?.savingPaceSource ? `Saving pace: ${d.facts.savingPaceSource} · ` : "";
     const isStore = !!item.id;
 
     if (!d.intervene) {

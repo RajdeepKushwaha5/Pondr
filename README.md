@@ -1,10 +1,13 @@
 # 🦆 Pondr: think before you pay
 
-**Pondr remembers what you wanted, checks whether it still fits your rules, and prepares a purchase for your approval, without spending your goal money.**
+**Turn a checkout impulse into a deliberate step toward your goal.**
+
+Pondr is a companion that knows what you are saving for. At checkout it shows what a purchase means for that goal, and lets you choose: put the amount toward your goal instead (you still press pay), buy it anyway, or wait for a planned purchase that fits your rules. It remembers what you chose, follows up on your phone, and never pays without your approval.
 
 Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/) with **PayPal (sandbox)** and an **LLM agent** (Groq gpt-oss-120b by default, Claude optional), plus **Channel3** product data.
 
-Every other finance app says *"don't buy."* Pondr says **"not yet, and I'll buy it for you when it's right."**
+**Primary:** make a deliberate decision that respects your goal.
+**Secondary:** contribute to the goal, buy now, or wait for a planned purchase (Wait & Watch).
 
 ---
 
@@ -26,7 +29,9 @@ It also:
 - **Monthly auto-pond:** saves before you spend, using **PayPal Subscriptions** (a monthly schedule; it does not detect paydays).
 - **Goal reached:** requests a **PayPal Payout**. The pond stays reserved as "pending" and only drops once PayPal reports the payout item as SUCCESS; failures restore it.
 - **Chat buddy:** an AI agent with tools that reads your spending, finds recurring charges and creates watches from plain language ("I want the headphones but cheaper, max 75").
-- **Chrome extension:** the same duck on any checkout page.
+- **Chrome extension (prototype):** the same duck on checkout pages where it can read an EUR total; tested mainly on the demo store.
+- **Telegram companion:** link your phone with a one-time code; Pondr messages you when something happens, sends opt-in scheduled check-ins, and lets you approve, let go, or pond from your phone.
+- **Onboarding chat:** tell Pondr your goal, what you have saved and what you can put aside; it proposes settings you confirm. Every number shows its source ("you told Pondr", demo history, PayPal sandbox).
 
 ## How the AI works (and how it's kept safe)
 

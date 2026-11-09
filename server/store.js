@@ -57,6 +57,17 @@ export function seed() {
   };
 }
 
+// A brand-new user: no demo history, no goal yet. Onboarding chat fills it in.
+export function seedFresh() {
+  const s = seed();
+  s.user = { ...s.user, name: "there", monthlyIncome: 0, monthlySavingsPace: 0, monthlyFunBudget: 0, setupNeeded: true };
+  s.ponds = [{ id: "pond_goal", name: "My goal", target: 500, balance: 0, pendingWithdrawal: 0, placeholder: true, createdAt: new Date().toISOString() }];
+  s.activePondId = "pond_goal";
+  s.transactions = [];
+  s.activity = [{ id: id("act"), at: new Date().toISOString(), kind: "pond", text: "Fresh start: tell Pondr what you're saving for" }];
+  return s;
+}
+
 const als = new AsyncLocalStorage();
 const sessions = new Map(); // sid -> { sid, db, touched }
 const file = (sid) => path.join(SESS_DIR, `${sid}.json`);
@@ -103,9 +114,9 @@ export function save() {
   fs.writeFileSync(file(s.sid), JSON.stringify(s.db, null, 2));
 }
 
-export function reset() {
+export function reset({ fresh = false } = {}) {
   const keep = current().db.telegram; // a linked phone survives a demo reset
-  current().db = seed();
+  current().db = fresh ? seedFresh() : seed();
   if (keep) current().db.telegram = keep;
   save();
   return getDb();

@@ -174,7 +174,7 @@ export function applyCompleted(payment, captureId) {
       at: payment.completedAt,
       text: `${item ? `You chose your ${pond.name} over the ${item}. ` : ""}Recorded contribution: €${payment.amount} (${modes.paypal === "sandbox" ? "PayPal sandbox" : "mock"} capture ${captureId}). Your ${pond.name} is now €${pond.balance} of €${pond.target}.${item ? ` Want me to keep an eye on the ${item} in case you still want them later, or let them go?` : ""}`,
     });
-    notify({ type: "ponded", amount: payment.amount, pond, captureId, item, productId: payment.productId });
+    notify({ type: "ponded", amount: payment.amount, pond, captureId, item, productId: payment.productId, goalName: payment.goalName, balanceAfter: payment.balanceAfter, target: payment.target });
   } else if (payment.kind === "buy" || payment.kind === "mandate") {
     const item = product(payment.productId);
     db.transactions.unshift({

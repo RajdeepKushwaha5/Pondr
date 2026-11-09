@@ -31,7 +31,22 @@ function send(chatId, text, rows) {
       inline_keyboard: rows.map((r) => r.filter(Boolean).map((b) => (b.url ? { text: b.text, url: b.url } : { text: b.text, callback_data: b.data }))).filter((r) => r.length),
     };
   }
-  return tg("sendMessage", body).catch((e) => console.error(e.message));
+  // Resolves true when Telegram accepted the message, false otherwise (never throws).
+  return tg("sendMessage", body).then(
+    () => true,
+    (e) => {
+      console.error(e.message);
+      return false;
+    }
+  );
+}
+
+// Send to the linked user and record a failure in their activity feed.
+function deliver(chatId, text, rows) {
+  return send(chatId, text, rows).then((ok) => {
+    if (!ok) log("failed", "Couldn't deliver a Telegram message to your phone.");
+    return ok;
+  });
 }
 
 // Telegram only accepts real http(s) URLs on buttons; mock-mode PayPal pages are relative.
@@ -48,7 +63,7 @@ export function createLinkCode() {
 
 export function telegramStatus() {
   const t = getDb().telegram;
-  return { mode: telegram.mode, bot: telegram.botUsername, linked: !!t, name: t?.firstName || null, linkedAt: t?.linkedAt || null };
+  return { mode: telegram.mode, bot: telegram.botUsername, linked: !!t, name: t?.firstName || null, linkedAt: t?.linkedAt || null, checkins: t?.checkins || { every: "off" } };
 }
 
 export function unlinkTelegram() {
@@ -73,17 +88,44 @@ export function checkinMessage() {
   };
 }
 
-export function sendCheckin() {
+export async function sendCheckin({ scheduled = false } = {}) {
   const t = getDb().telegram;
   if (!t) throw new Error("Connect Telegram first.");
   const { text, rows } = checkinMessage();
-  log("checkin", "Pondr sent you a check-in on Telegram");
-  return send(t.chatId, text, rows);
+  const ok = await send(t.chatId, text, rows);
+  if (!ok) {
+    log("failed", "Check-in couldn't be delivered to Telegram.");
+    throw new Error("Couldn't reach your phone on Telegram. Is the bot still running?");
+  }
+  log("checkin", scheduled ? "Pondr checked in on Telegram (your scheduled check-in)" : "Pondr sent you a check-in on Telegram");
+  return true;
+}
+
+// ---------- Opt-in scheduled check-ins ----------
+const EVERY_MS = { daily: 86400000, weekly: 7 * 86400000 };
+export function setCheckins(every) {
+  const t = getDb().telegram;
+  if (!t) throw new Error("Connect Telegram first.");
+  if (!["off", "daily", "weekly"].includes(every)) throw new Error("Choose off, daily or weekly");
+  t.checkins = every === "off" ? { every: "off" } : { every, nextAt: new Date(Date.now() + EVERY_MS[every]).toISOString() };
+  save();
+  log("checkin", every === "off" ? "Scheduled check-ins turned off" : `Scheduled check-ins: ${every}`);
+  return t.checkins;
+}
+// Called by the background loop inside each session.
+export async function runDueCheckins() {
+  const t = getDb().telegram;
+  if (!t?.checkins?.nextAt || telegram.mode !== "live") return;
+  if (new Date(t.checkins.nextAt).getTime() > Date.now()) return;
+  t.checkins.nextAt = new Date(Date.now() + EVERY_MS[t.checkins.every]).toISOString();
+  save();
+  await sendCheckin({ scheduled: true }).catch(() => {});
 }
 
 onNotify((e) => {
   const t = getDb().telegram;
   if (!t || telegram.mode !== "live") return;
+  const send = deliver; // record delivery failures for event notifications
   const pond = activePond();
   switch (e.type) {
     case "ready": {
@@ -99,13 +141,16 @@ onNotify((e) => {
     case "waiting":
       send(t.chatId, `Watching ${e.mandate.productName}. ${e.note} I'll keep waiting.`, [[{ text: "Let it go", data: `release:${e.mandate.id}` }]]);
       break;
-    case "ponded":
+    case "ponded": {
+      // Use the confirmed payment's own goal snapshot, never whichever goal is active now.
+      const name = e.goalName || pond.name, after = e.balanceAfter ?? pond.balance, target = e.target ?? pond.target;
       send(
         t.chatId,
-        `${e.item ? `You chose your ${pond.name} over the ${e.item}. ` : ""}${eur(e.amount)} recorded toward it.\nNow ${eur(pond.balance)} of ${eur(pond.target)} (${Math.round((pond.balance / pond.target) * 100)}%). PayPal sandbox capture ${e.captureId}.${e.item ? "\nWant me to keep an eye on it in case you still want it later?" : ""}`,
+        `${e.item ? `You chose your ${name} over the ${e.item}. ` : ""}${eur(e.amount)} recorded toward it.\nNow ${eur(after)} of ${eur(target)} (${Math.round((after / target) * 100)}%). ${String(e.captureId).startsWith("MOCK") ? "Mock" : "PayPal sandbox"} capture ${e.captureId}.${e.item ? "\nWant me to keep an eye on it in case you still want it later?" : ""}`,
         e.productId ? [[{ text: "Keep an eye on it", data: `watchitem:${e.productId}` }, { text: "Let it go", data: "noop:letgo" }]] : null
       );
       break;
+    }
     case "bought":
       send(t.chatId, `Done: ${e.item} for ${eur(e.amount)}, approved by you in PayPal${e.priceDrop ? `, ${eur(e.priceDrop)} under your starting price` : ""}. Capture ${e.captureId}.`);
       break;
@@ -124,9 +169,19 @@ onNotify((e) => {
 // ---------- Incoming messages and buttons ----------
 const HELP = "I'm Pondr, your money duck. Ask me anything about your spending, or try:\n/checkin  how my goal is doing\n/pond 20  put €20 toward my goal\n/watches  what I'm waiting for";
 
+// Only the Telegram user who linked this session may act on it.
+function isOwner(sid, fromId) {
+  return withSession(sid, () => {
+    const t = getDb().telegram;
+    return !!t && (t.userId === undefined || t.userId === fromId);
+  });
+}
+
 async function onMessage(msg) {
   const chatId = msg.chat.id;
   const text = (msg.text || "").trim();
+  // Pondr is personal: private chats only, never groups or channels.
+  if (msg.chat.type !== "private") return send(chatId, "Pondr only works in a private chat. Message me directly.");
   const start = text.match(/^\/start(?:\s+([A-F0-9]{8}))?$/i);
   if (start) {
     const entry = start[1] && linkCodes.get(start[1].toUpperCase());
@@ -136,7 +191,7 @@ async function onMessage(msg) {
     linkCodes.delete(start[1].toUpperCase());
     unlinkTelegramElsewhere(chatId, entry.sid);
     await withSession(entry.sid, () => {
-      getDb().telegram = { chatId, firstName: msg.from?.first_name || null, linkedAt: new Date().toISOString() };
+      getDb().telegram = { chatId, userId: msg.from?.id, firstName: msg.from?.first_name || null, linkedAt: new Date().toISOString() };
       save();
       log("pond", "Telegram connected. Pondr can message you first now.");
     });
@@ -144,7 +199,7 @@ async function onMessage(msg) {
   }
 
   const sid = sessionForTelegramChat(chatId);
-  if (!sid) return send(chatId, "This chat isn't connected yet. Open the Pondr dashboard and tap Connect Telegram.");
+  if (!sid || !isOwner(sid, msg.from?.id)) return send(chatId, "This chat isn't connected yet. Open the Pondr dashboard and tap Connect Telegram.");
 
   return withSession(sid, async () => {
     if (/^\/help/i.test(text)) return send(chatId, HELP);
@@ -178,8 +233,9 @@ async function onCallback(q) {
   const chatId = q.message?.chat?.id;
   const data = q.data || "";
   await tg("answerCallbackQuery", { callback_query_id: q.id }).catch(() => {});
+  if (q.message?.chat?.type !== "private") return;
   const sid = chatId && sessionForTelegramChat(chatId);
-  if (!sid) return;
+  if (!sid || !isOwner(sid, q.from?.id)) return;
   await withSession(sid, async () => {
     const db = getDb();
     try {

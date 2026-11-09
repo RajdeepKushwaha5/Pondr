@@ -328,3 +328,5 @@ details.tl-wrap[open] summary::before { content: "▾ "; }
 .goal-moment .btn.outline:hover { background: #24272d; }
 .goal-moment .btn.dark { background: var(--duck); color: var(--ink); }
 .goal-moment code { color: var(--duck); }
+
+.gm-yours { margin: 14px 0 0; font-size: 14px; color: #d8d5cc; }

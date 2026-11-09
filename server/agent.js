@@ -2,7 +2,7 @@
 // Code supplies every number; Claude decides and writes; server tools enforce limits.
 import { askJSON, runAgent, AIUnavailable } from "./llm.js";
 import { getDb, save, log, id, product, activePond, mandateEvent, notify } from "./store.js";
-import { financeSnapshot, mandateConditions, daysOfSaving, round2, pondFor } from "./money.js";
+import { financeSnapshot, mandateConditions, daysOfSaving, daysExact, round2, pondFor } from "./money.js";
 import { searchMarket } from "./channel3.js";
 import { startOrder } from "./payments.js";
 
@@ -25,13 +25,22 @@ const DUCK_SCHEMA = {
 };
 
 // The headline is always built by code so the numbers can't drift.
-const headlineFor = (f) => (f.daysOfSaving ? `€${f.item.price} = ${f.daysOfSaving} days of your ${f.pond.name}` : `€${f.item.price} toward your ${f.pond.name}?`);
+const headlineFor = (f) => {
+  if (f.daysOfSaving === null || f.daysOfSaving === undefined) return `€${f.item.price} toward your ${f.pond.name}?`;
+  if (f.daysOfSaving === 0) return `€${f.item.price} = less than a day of your ${f.pond.name}`;
+  return `€${f.item.price} = ${f.daysOfSaving} day${f.daysOfSaving === 1 ? "" : "s"} of your ${f.pond.name}`;
+};
 
 export async function duckDecision(item, amount) {
   const facts = financeSnapshot(amount, item);
   const quiet = getDb().user.quietCategories.includes(item.category);
   if (quiet) {
     return { intervene: false, quietReason: `${item.category} is an essential category, so Pondr stays quiet.`, facts, source: "rule" };
+  }
+  // Small stuff: under one day of saving at the stated pace. Decided by code on the exact value.
+  const exact = daysExact(amount);
+  if (exact !== null && exact < 1) {
+    return { intervene: false, quietReason: "That's less than a day of your saving pace, so Pondr stays out of the way.", facts, source: "rule" };
   }
   try {
     const decision = await askJSON({
@@ -54,8 +63,7 @@ The message speaks to the user by name; reasons are short and quote only numbers
 }
 
 function mockDuck(f) {
-  const days = f.daysOfSaving;
-  if (days !== null && days < 1) return { intervene: false, headline: "", message: "", reasons: [] };
+  if (f.daysExact !== null && f.daysExact !== undefined && f.daysExact < 1) return { intervene: false, headline: "", message: "", reasons: [] };
   const reasons = [];
   if (f.spentLast30SameCategory > 0) reasons.push(`You've spent €${f.spentLast30SameCategory} on ${f.item.category} in the last 30 days.`);
   reasons.push(`Ponding it takes ${f.pond.name} from ${f.pond.progressPct}% to ${f.pondProgressIfPonded}%.`);
@@ -122,6 +130,7 @@ const CHAT_TOOLS = [
         name: { type: "string" },
         goal_name: { type: "string", description: "e.g. Apartment fund, Trip to Japan" },
         goal_target: { type: "number" },
+        current_savings: { type: "number", description: "What they have already saved toward this goal, if they said so" },
         monthly_income: { type: "number" },
         monthly_savings_pace: { type: "number" },
         monthly_fun_budget: { type: "number" },
@@ -136,13 +145,16 @@ export function proposeSetup(input) {
   const num = (v, max) => (v === undefined || v === null || v === "" ? undefined : Math.min(Math.max(round2(Number(v)) || 0, 0), max));
   const p = {
     name: input.name ? String(input.name).trim().slice(0, 30) : undefined,
-    goalName: input.goal_name ? String(input.goal_name).trim().slice(0, 40) : undefined,
+    goalName: input.goal_name ? ((g) => g.charAt(0).toUpperCase() + g.slice(1))(String(input.goal_name).trim().slice(0, 40)) : undefined,
     goalTarget: num(input.goal_target, 1000000),
+    currentSavings: num(input.current_savings, 1000000),
     monthlyIncome: num(input.monthly_income, 1000000),
     monthlySavingsPace: num(input.monthly_savings_pace, 100000),
     monthlyFunBudget: num(input.monthly_fun_budget, 100000),
   };
-  for (const k of Object.keys(p)) if (p[k] === undefined || p[k] === 0 && k !== "monthlyFunBudget") delete p[k];
+  // Zero is a real answer for pace, savings and fun budget ("I can't save right now"); not for a target or income.
+  const zeroOk = new Set(["monthlySavingsPace", "monthlyFunBudget", "currentSavings"]);
+  for (const k of Object.keys(p)) if (p[k] === undefined || (p[k] === 0 && !zeroOk.has(k))) delete p[k];
   if (!Object.keys(p).length) throw new Error("Nothing to set up yet. Ask the user about their goal, savings pace or fun budget.");
   getDb().pendingSetup = { ...p, proposedAt: new Date().toISOString() };
   save();
@@ -157,20 +169,29 @@ export function confirmSetup() {
   const u = db.user;
   if (p.name) u.name = p.name;
   if (p.monthlyIncome) u.monthlyIncome = p.monthlyIncome;
-  if (p.monthlySavingsPace) u.monthlySavingsPace = p.monthlySavingsPace;
+  if (p.monthlySavingsPace !== undefined) u.monthlySavingsPace = p.monthlySavingsPace;
   if (p.monthlyFunBudget !== undefined) u.monthlyFunBudget = p.monthlyFunBudget;
-  if (p.goalName || p.goalTarget) {
-    const pond = db.ponds.find((x) => x.id === db.activePondId) || db.ponds[0];
-    if (p.goalName && p.goalName.toLowerCase() !== pond.name.toLowerCase()) {
-      const fresh = { id: id("pond"), name: p.goalName, target: p.goalTarget || 500, balance: 0, pendingWithdrawal: 0, createdAt: new Date().toISOString() };
-      db.ponds.push(fresh);
-      db.activePondId = fresh.id;
+  let pond = db.ponds.find((x) => x.id === db.activePondId) || db.ponds[0];
+  if (p.goalName || p.goalTarget || p.currentSavings !== undefined) {
+    if (pond.placeholder) {
+      // Fresh profile: the placeholder becomes the user's own goal.
+      Object.assign(pond, { name: p.goalName || pond.name, target: p.goalTarget || pond.target, placeholder: false });
+    } else if (p.goalName && p.goalName.toLowerCase() !== pond.name.toLowerCase()) {
+      pond = { id: id("pond"), name: p.goalName, target: p.goalTarget || 500, balance: 0, pendingWithdrawal: 0, createdAt: new Date().toISOString() };
+      db.ponds.push(pond);
+      db.activePondId = pond.id;
     } else if (p.goalTarget) pond.target = p.goalTarget;
+    // What they've already saved elsewhere is recorded as a declared starting point, not a PayPal balance.
+    if (p.currentSavings !== undefined && pond.balance === 0) {
+      pond.balance = p.currentSavings;
+      pond.startingBalance = { amount: p.currentSavings, source: "you told Pondr" };
+    }
   }
   db.pendingSetup = null;
   db.setupConfirmedAt = new Date().toISOString();
+  u.setupNeeded = false;
   save();
-  log("pond", `Settings confirmed: ${[p.goalName && `goal ${p.goalName}`, p.goalTarget && `€${p.goalTarget} target`, p.monthlySavingsPace && `€${p.monthlySavingsPace}/month saving`, p.monthlyFunBudget !== undefined && `€${p.monthlyFunBudget} fun budget`].filter(Boolean).join(", ")}`);
+  log("pond", `Settings confirmed: ${[p.goalName && `goal ${p.goalName}`, p.goalTarget && `€${p.goalTarget} target`, p.currentSavings !== undefined && `€${p.currentSavings} already saved (you told Pondr)`, p.monthlySavingsPace !== undefined && `€${p.monthlySavingsPace}/month saving`, p.monthlyFunBudget !== undefined && `€${p.monthlyFunBudget} fun budget`].filter(Boolean).join(", ")}`);
   return db.user;
 }
 
@@ -253,11 +274,11 @@ export async function chat(userText) {
       system: `${PERSONA}
 USER: ${db.user.name}. GOAL: ${(db.ponds.find((x) => x.id === db.activePondId) || db.ponds[0]).name} (target €${(db.ponds.find((x) => x.id === db.activePondId) || db.ponds[0]).target}).
 SAVED SETTINGS (already confirmed): saving €${db.user.monthlySavingsPace}/month, fun budget €${db.user.monthlyFunBudget}/month, income €${db.user.monthlyIncome}/month.
-PENDING CARD: ${db.pendingSetup ? "yes, waiting for the user to confirm" : "none; nothing is waiting for confirmation"}.
+PENDING CARD: ${db.pendingSetup ? "yes, waiting for the user to confirm" : "none; nothing is waiting for confirmation"}.${db.user.setupNeeded ? "\nSETUP NEEDED: this is a new profile with no goal or settings yet." : ""}
 RECENT ACTIVITY (verified records, newest first):
 ${recent}
 You can look up the user's finances, the demo store and live market prices, and set up Wait & Watch mandates.
-Get to know the user like a friend would: what they are saving for, roughly what comes in, how much they can put aside each month, and how much they want to keep for fun. When they tell you any of this, call propose_setup and tell them to confirm the card. Never say settings are saved until they confirm.
+Get to know the user like a friend would: what they are saving for, what they have already saved, roughly what comes in, how much they can put aside each month (zero is a fine answer), and how much they want to keep for fun. If the profile is new (SETUP NEEDED), start by asking about their goal. When they tell you any of this, call propose_setup and tell them to confirm the card. Never say settings are saved until they confirm.
 Refer to things the user actually did (RECENT ACTIVITY below) when relevant, e.g. a recent pond or purchase. Never invent past events.
 When the user says they want something "cheaper", "later" or "when I can afford it", offer or create a watch.
 Pondr can only buy from the Pondr Demo Store; market prices from other retailers are for comparison only.
