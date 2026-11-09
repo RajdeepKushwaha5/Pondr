@@ -66,6 +66,9 @@ export function financeSnapshot(amount, item) {
     daysExact: amount ? daysExact(amount) : undefined,
     savingPaceSource: db.setupConfirmedAt ? "you told Pondr" : "demo profile",
     pondProgressIfPonded: amount ? Math.round(((pond.balance + amount) / pond.target) * 100) : undefined,
+    // Outcomes of each choice, computed here so the AI never has to do arithmetic.
+    ifBuyNow: amount ? { goalBalanceAfter: pond.balance, goalUnchanged: true, funBudgetLeftAfter: round2(budgetSnapshot().remaining - amount) } : undefined,
+    ifPondIt: amount ? { goalBalanceAfter: round2(pond.balance + amount), goalProgressPctAfter: Math.round(((pond.balance + amount) / pond.target) * 100), funBudgetUnchanged: true } : undefined,
     spentLast30: spendLast30(),
     spentLast30ByCategory: Object.fromEntries([...new Set(db.transactions.filter((t) => within30(t.date)).map((t) => t.category))].map((c) => [c, spendLast30(c)])),
     essentialCategories: db.user.quietCategories,

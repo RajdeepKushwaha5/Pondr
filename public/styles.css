@@ -1,7 +1,7 @@
 /* Pondr design system
-   Type: Bricolage Grotesque (display) · Instrument Serif (editorial accent) · Geist (UI) · Geist Mono (figures)
-   Palette: warm paper, near-black ink, pond teal, duck yellow. */
-@import url("https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Geist:wght@400..700&family=Geist+Mono:wght@400..600&family=Instrument+Serif:ital@0;1&display=swap");
+   Type: Archivo (display, set wide) · Geist (UI) · Geist Mono (figures).
+   Palette: cool paper, ink, deep pond green, duck yellow as the only signal colour. */
+@import url("https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Geist:wght@400..700&family=Geist+Mono:wght@400..600&display=swap");
 
 :root {
   --paper: #f6f2ea;
@@ -330,3 +330,113 @@ details.tl-wrap[open] summary::before { content: "▾ "; }
 .goal-moment code { color: var(--duck); }
 
 .gm-yours { margin: 14px 0 0; font-size: 14px; color: #d8d5cc; }
+
+/* =====================================================================
+   Design layer v2 — restraint over decoration.
+   One display face set wide, quieter labels, tighter radii, yellow used
+   only as a signal. Overrides the base rules above.
+   ===================================================================== */
+:root {
+  --paper: #f4f3ef;
+  --paper-2: #eae8e1;
+  --surface: #ffffff;
+  --ink: #0e1013;
+  --ink-2: #3c4048;
+  --muted: #6c7079;
+  --line: #e2e0d9;
+  --line-2: #d3d0c6;
+  --pond: #0f6b63;
+  --pond-deep: #0a3f3b;
+  --pond-mist: #dcebe7;
+  --duck: #ffc531;
+  --duck-deep: #e0a40d;
+  --beak: #e8622c;
+  --r-sm: 8px;
+  --r: 12px;
+  --r-lg: 18px;
+  --display: "Archivo", "Geist", system-ui, sans-serif;
+  --serif: inherit;
+}
+body { font-size: 15px; letter-spacing: -0.005em; }
+
+/* Display type: wide and heavy, modest tracking (no ultra-tight squeeze). */
+.greeting h1, .panel-head h2, .store-hero h1, .duck-modal h3, .product h3, .h2, .goal-moment h2, .stat, .figure {
+  font-family: var(--display);
+  font-stretch: 112%;
+}
+.greeting h1 { font-weight: 800; letter-spacing: -0.03em; line-height: 0.95; }
+.panel-head h2 { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; font-stretch: 108%; }
+.store-hero h1 { font-weight: 800; letter-spacing: -0.035em; line-height: 0.92; }
+.duck-modal h3 { font-weight: 800; letter-spacing: -0.02em; font-size: 24px; }
+.product h3 { font-weight: 700; letter-spacing: -0.01em; font-size: 17px; font-stretch: 106%; }
+
+/* Retire the italic-serif accent word: same face, no flourish. */
+.serif, .duck-modal h3 em, .greeting h1 .serif { font-family: inherit; font-style: normal; font-weight: inherit; letter-spacing: inherit; color: inherit; font-size: inherit; transform: none; }
+
+/* Labels: sentence case, quiet. Mono is reserved for numbers. */
+.eyebrow { font: 500 12px/1.3 var(--ui); text-transform: none; letter-spacing: 0; color: var(--muted); }
+.panel-head .eyebrow { font-size: 12px; }
+.panel.ink .eyebrow { color: #8b8f97; }
+
+/* Header: thinner, calmer. */
+.topbar { background: color-mix(in srgb, var(--paper) 92%, transparent); }
+.topbar-inner { padding: 10px 24px; }
+.brand .word { font-family: var(--display); font-stretch: 115%; font-weight: 800; font-size: 20px; letter-spacing: -0.02em; }
+.nav a { border-radius: var(--r-sm); font-size: 14px; padding: 6px 10px; }
+.nav a.active { background: transparent; color: var(--ink); box-shadow: inset 0 -2px 0 var(--ink); border-radius: 0; }
+.modes { gap: 10px; font: 500 11px var(--ui); text-transform: none; letter-spacing: 0; }
+.modes span { padding: 3px 8px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); }
+.modes i { width: 6px; height: 6px; }
+
+/* Surfaces: flatter, tighter, hairline borders. */
+.panel { border-radius: var(--r-lg); padding: 22px 24px; box-shadow: none; }
+.panel.ink { background: #121419; }
+.item { border-radius: var(--r); }
+.grid { gap: 14px; }
+
+/* Buttons: squared-off, confident, no bubble pills. */
+.btn { border-radius: 10px; font-weight: 600; letter-spacing: -0.005em; padding: 10px 16px; }
+.btn.sm { border-radius: 8px; padding: 7px 12px; }
+.btn.dark { background: var(--ink); }
+.btn.dark:hover { background: #272a31; }
+.btn.yellow, .btn.paypal { background: var(--duck); color: var(--ink); }
+.btn.yellow:hover, .btn.paypal:hover { background: #f5b915; }
+.btn.outline { border-color: var(--line-2); background: var(--surface); }
+input, select { border-radius: 8px; }
+
+/* Pond card: less cartoon, more instrument. */
+.figure { font-weight: 800; letter-spacing: -0.035em; font-family: var(--display); }
+.figure small { font-family: var(--ui); }
+.target-line { border-top-style: solid; border-top-color: color-mix(in srgb, var(--pond-deep) 18%, transparent); font: 500 11px var(--ui); text-transform: none; letter-spacing: 0; }
+.stat { font-weight: 800; letter-spacing: -0.03em; }
+
+/* Pills and chips: quieter. */
+.pill { font: 600 11px/1 var(--ui); text-transform: none; letter-spacing: 0; padding: 5px 8px; border-radius: 6px; }
+.chip { border-radius: 8px; }
+
+/* Duck sheet: crisper. */
+.duck-modal { border-radius: 20px; box-shadow: 0 24px 60px rgba(14, 16, 19, 0.22), 0 0 0 1px rgba(14, 16, 19, 0.04); }
+.choice { border-radius: 12px; }
+.choice .ci { border-radius: 8px; }
+.duck-foot { font: 500 11px/1.4 var(--ui); text-transform: none; letter-spacing: 0; }
+
+/* Store */
+.product { border-radius: var(--r-lg); padding: 8px; }
+.art { border-radius: 12px; }
+.price { font-family: var(--display); font-stretch: 110%; font-weight: 700; letter-spacing: -0.02em; }
+.sale { border-radius: 6px; font-family: var(--ui); }
+.store-hero { border-bottom: 0; padding-bottom: 18px; }
+
+/* Goal moment */
+.goal-moment { border-radius: 22px; background: #121419; }
+.goal-moment h2 { font-weight: 800; letter-spacing: -0.03em; }
+.goal-moment .eyebrow { color: var(--duck); font-weight: 600; }
+
+/* Scenario tiles, receipts, timelines */
+.scenario { border-radius: 12px; }
+.scenario .n { font: 600 11px var(--ui); letter-spacing: 0; text-transform: none; }
+.receipt { border-radius: 12px; border-style: solid; }
+.rc-head { font: 600 12px var(--ui); text-transform: none; letter-spacing: 0; }
+.tl-mini time, details.tl-wrap summary { font-family: var(--ui); text-transform: none; letter-spacing: 0; font-size: 12px; }
+.mockbar { font: 600 12px/1.4 var(--ui); text-transform: none; letter-spacing: 0; }
+.toast { border-radius: 10px; }

@@ -47,7 +47,8 @@ export async function duckDecision(item, amount) {
       system: `${PERSONA}
 You decide whether to show a checkout intervention. Intervene for impulse or discretionary purchases that set a goal back.
 Do not intervene for small amounts that barely move the goal (under 1 day of saving) or essentials.
-The message speaks to the user by name; reasons are short and quote only numbers from FACTS. Plain text, no emoji.`,
+The message speaks to the user by name; reasons are short and quote only numbers from FACTS. Plain text, no emoji.
+How the money works (do not get this wrong): buying now does NOT reduce the goal balance; it uses the fun budget (see ifBuyNow). Pond it ADDS the amount to the goal (see ifPondIt). Never compute new numbers; only quote values from FACTS.`,
       messages: [{ role: "user", content: `FACTS:\n${JSON.stringify(facts, null, 2)}` }],
       schema: DUCK_SCHEMA,
       effort: "low",

@@ -44,7 +44,7 @@
         if (payment.status === "completed") {
           box.innerHTML = `${productArt(product.art, 200)}
             <span class="eyebrow">Done · you approved it</span>
-            <h2 class="h2">Bought${mandate?.priceDrop ? `, <span class="serif" style="color:var(--pond)">${eur(mandate.priceDrop)} under</span> your starting price` : ""}.</h2>
+            <h2 class="h2">Bought${mandate?.priceDrop ? `, <span style="color:var(--pond)">${eur(mandate.priceDrop)} under</span> your starting price` : ""}.</h2>
             <p class="muted">${esc(product.name)} for ${eur(payment.amount)}, paid through PayPal sandbox to ${esc(payment.payee || merchant)}.</p>
             <div class="kv"><span>PayPal order</span><code>${esc(payment.orderId)}</code><span>Capture</span><code>${esc(payment.captureId)}</code></div>
             ${mandate?.events?.length ? `<details class="tl-wrap" open><summary>What happened</summary>${timelineHtml(mandate.events)}</details>` : ""}

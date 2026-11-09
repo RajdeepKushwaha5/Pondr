@@ -42,7 +42,7 @@ function renderPond() {
   const ponded = state.payments.filter((x) => x.kind === "pond" && x.status === "completed").reduce((s, x) => s + x.amount, 0);
   if (p.placeholder) {
     document.getElementById("pondMeta").innerHTML = `<span>No goal yet. Tell Pondr what you're saving for in the chat.</span>`;
-    document.getElementById("hello").innerHTML = `Hi there. What are you <span class="serif">saving</span> for?`;
+    document.getElementById("hello").innerHTML = `Hi there. What are you saving for?`;
     document.getElementById("helloSub").textContent = "Tell Pondr your goal, what you've saved, and what you can put aside. It turns that into settings you confirm, then helps at checkout.";
     return;
   }
@@ -50,7 +50,7 @@ function renderPond() {
   document.getElementById("pondMeta").innerHTML =
     `${p.startingBalance ? `<span><b>${eur(p.startingBalance.amount)}</b> start (you told Pondr)</span>` : ""}<span><b>${daysLeft ?? "–"}</b> days to go</span><span><b>${eur(state.user.monthlySavingsPace)}</b>/mo stated pace</span>${ponded ? `<span><b>${eur(ponded)}</b> ponded from impulses</span>` : ""}${p.pendingWithdrawal ? `<span style="color:var(--duck-deep)"><b>${eur(p.pendingWithdrawal)}</b> payout pending</span>` : ""}`;
   document.getElementById("payoutBtn").disabled = !!p.pendingWithdrawal || p.balance <= 0;
-  document.getElementById("hello").innerHTML = `Hey ${esc(state.user.name)}. Think <span class="serif">before</span> you pay.`;
+  document.getElementById("hello").innerHTML = `Hey ${esc(state.user.name)}. Think before you pay.`;
 }
 
 function renderMandates() {
@@ -191,7 +191,7 @@ function renderAutopond() {
       <div class="kv"><span>Subscription</span><code>${esc(s.id)}</code><span>Status</span><span style="color:var(--good);font-weight:600">${esc(s.status)}</span></div>`;
     return;
   }
-  el.innerHTML = `<p class="small" style="margin-top:0">Save <span class="serif" style="font-size:17px">before</span> you spend. Pondr sets up a monthly PayPal subscription; pick a date near your payday.</p>
+  el.innerHTML = `<p class="small" style="margin-top:0">Save before you spend. Pondr sets up a monthly PayPal subscription; pick a date near your payday.</p>
     <div class="range-row"><input id="apAmount" type="range" min="10" max="200" step="5" value="50" aria-label="Amount per payday"><output id="apOut">€50</output></div>
     <button class="btn dark" id="apBtn" style="margin-top:12px;width:100%;justify-content:center">${icon("calendar", 16)} Set up with PayPal</button>
     ${s ? `<p class="small muted">Last attempt: ${esc(s.status)}</p>` : ""}`;
