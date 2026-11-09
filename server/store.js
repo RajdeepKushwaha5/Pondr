@@ -95,6 +95,7 @@ function current() {
 }
 
 export const getDb = () => current().db;
+export const currentSid = () => current().sid;
 
 export function save() {
   const s = current();
@@ -103,7 +104,9 @@ export function save() {
 }
 
 export function reset() {
+  const keep = current().db.telegram; // a linked phone survives a demo reset
   current().db = seed();
+  if (keep) current().db.telegram = keep;
   save();
   return getDb();
 }
@@ -117,6 +120,20 @@ export function sessionForOrder(orderId) {
 // return/cancel URLs locate the owner by the unguessable payment id instead.
 export function sessionForPayment(paymentId) {
   for (const s of sessions.values()) if (s.db.payments.some((p) => p.id === paymentId)) return s.sid;
+  return null;
+}
+// One phone links to one demo session: the newest link wins.
+export function unlinkTelegramElsewhere(chatId, keepSid) {
+  for (const s of sessions.values()) {
+    if (s.sid !== keepSid && s.db.telegram?.chatId === chatId) {
+      s.db.telegram = null;
+      fs.mkdirSync(SESS_DIR, { recursive: true });
+      fs.writeFileSync(file(s.sid), JSON.stringify(s.db, null, 2));
+    }
+  }
+}
+export function sessionForTelegramChat(chatId) {
+  for (const s of sessions.values()) if (s.db.telegram?.chatId === chatId) return s.sid;
   return null;
 }
 export function sessionForSubscription(subId) {
@@ -139,6 +156,15 @@ export function mandateEvent(mandateOrId, kind, text, data) {
   m.events ||= [];
   m.events.push({ at: new Date().toISOString(), kind, text, ...(data ? { data } : {}) });
   m.events = m.events.slice(-30);
+}
+
+// Companion notifications (Telegram etc.). Listeners run inside the current session.
+const listeners = [];
+export const onNotify = (fn) => listeners.push(fn);
+export function notify(event) {
+  for (const fn of listeners) {
+    try { fn(event); } catch (e) { console.error("notify:", e.message); }
+  }
 }
 
 export const activePond = () => {

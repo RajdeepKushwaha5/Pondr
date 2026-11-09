@@ -5,7 +5,8 @@ import { config, modes } from "./config.js";
 import * as paypal from "./paypal.js";
 import { getDb, save, log, reset, id, activePond, product, withSession, sessionIds, newSessionId, validSessionId, sessionForOrder, sessionForSubscription, sessionForPayment } from "./store.js";
 import { startOrder, capture, cancel, findPayment, findPaymentByOrder, applyCompleted, requestPayout, refreshPayout, reconcile, MERCHANT } from "./payments.js";
-import { duckDecision, chat, createMandate, releaseMandate, watchTick } from "./agent.js";
+import { duckDecision, chat, createMandate, releaseMandate, watchTick, confirmSetup } from "./agent.js";
+import { startTelegram, telegram as telegramInfo, telegramStatus, createLinkCode, unlinkTelegram, sendCheckin } from "./telegram.js";
 import { daysOfSaving, spendLast30, recurringCharges, budgetSnapshot, mandateConditions, pondFor, round2 } from "./money.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -23,7 +24,8 @@ const wrap = (fn) => (req, res) =>
     });
 
 // Health check for the host (no session is created).
-app.get("/healthz", (req, res) => res.json({ ok: true, paypal: modes.paypal, ai: modes.ai, channel3: modes.channel3 }));
+const telegramStatusMode = () => telegramInfo.mode;
+app.get("/healthz", (req, res) => res.json({ ok: true, paypal: modes.paypal, ai: modes.ai, channel3: modes.channel3, telegram: telegramStatusMode() }));
 
 // ---- PayPal webhooks: no visitor cookie; strictly verified in sandbox mode ----
 // Mounted before the session middleware so it never creates demo sessions.
@@ -105,6 +107,8 @@ app.get(
       activity: db.activity.slice(0, 25),
       chat: db.chat.slice(-20),
       subscription: db.subscription,
+      pendingSetup: db.pendingSetup || null,
+      telegram: telegramStatus(),
       insights: insights(),
     });
   })
@@ -274,6 +278,38 @@ app.post(
     const text = String(req.body.text || "").slice(0, 1000).trim();
     if (!text) throw new Error("Empty message");
     res.json(await chat(text));
+  })
+);
+
+// ---- Onboarding: the AI proposes, the user confirms ----
+app.post(
+  "/api/setup/confirm",
+  wrap((req, res) => res.json(confirmSetup()))
+);
+app.post(
+  "/api/setup/dismiss",
+  wrap((req, res) => {
+    getDb().pendingSetup = null;
+    save();
+    res.json({ ok: true });
+  })
+);
+
+// ---- Telegram companion ----
+app.get("/api/telegram", wrap((req, res) => res.json(telegramStatus())));
+app.post("/api/telegram/link", wrap((req, res) => res.json(createLinkCode())));
+app.post(
+  "/api/telegram/unlink",
+  wrap((req, res) => {
+    unlinkTelegram();
+    res.json({ ok: true });
+  })
+);
+app.post(
+  "/api/telegram/checkin",
+  wrap(async (req, res) => {
+    await sendCheckin();
+    res.json({ ok: true });
   })
 );
 
@@ -459,12 +495,19 @@ setInterval(async () => {
         await watchTick();
         for (const p of getDb().payments.filter((x) => x.kind === "payout" && ["pending", "unknown"].includes(x.status))) await refreshPayout(p);
         for (const p of getDb().payments.filter((x) => x.kind !== "payout" && ["processing", "unknown", "capturing", "unresolved"].includes(x.status))) await reconcile(p);
+        // Approved in PayPal but the return page never loaded (e.g. approved on a phone): capture now.
+        for (const p of getDb().payments.filter((x) => x.status === "awaiting_approval" && x.orderId && Date.now() - new Date(x.createdAt).getTime() > 15000)) {
+          const order = await paypal.getOrder(p.orderId).catch(() => null);
+          if (order?.status === "APPROVED") await capture(p);
+        }
       } catch (e) {
         console.error("background:", e.message);
       }
     });
   }
-}, 30000);
+}, 15000);
+
+startTelegram().catch((e) => console.error("telegram:", e.message));
 
 app.listen(config.port, () => {
   console.log(`Pondr running at ${config.baseUrl}`);

@@ -2,7 +2,7 @@
 // never on a browser redirect alone, and every apply is idempotent.
 import { config } from "./config.js";
 import * as paypal from "./paypal.js";
-import { getDb, save, log, id, activePond, product, mandateEvent } from "./store.js";
+import { getDb, save, log, id, activePond, product, mandateEvent, notify } from "./store.js";
 import { round2, mandateConditions } from "./money.js";
 
 export const MERCHANT = "Pondr Demo Merchant (PayPal sandbox)";
@@ -44,7 +44,8 @@ export const findPaymentByOrder = (orderId) => getDb().payments.find((p) => p.or
 // watch must still be active and still point at this exact payment; "Let it go" or "Not now"
 // make an old approval link useless. The user's rules are re-checked before money moves.
 export async function capture(payment) {
-  if (payment.status === "completed") return payment;
+  // Already completed or in flight (e.g. the background approval check got there first).
+  if (["completed", "capturing", "processing"].includes(payment.status)) return payment;
   if (payment.status !== "awaiting_approval") {
     payment.error = payment.error || `This payment is ${payment.status} and can't be completed.`;
     save();
@@ -162,6 +163,7 @@ export function applyCompleted(payment, captureId) {
     const pond = db.ponds.find((p) => p.id === payment.pondId) || activePond();
     pond.balance = round2(pond.balance + payment.amount);
     log("ponded", `Ponded €${payment.amount} into ${pond.name} instead of buying ${product(payment.productId)?.name || "it"}`);
+    notify({ type: "ponded", amount: payment.amount, pond, captureId, item: product(payment.productId)?.name });
   } else if (payment.kind === "buy" || payment.kind === "mandate") {
     const item = product(payment.productId);
     db.transactions.unshift({
@@ -181,6 +183,7 @@ export function applyCompleted(payment, captureId) {
         mandateEvent(m, "paid", `PayPal capture completed: €${payment.amount}.`, { captureId, orderId: payment.orderId });
       }
       log("bought", `You approved ${item?.name} for €${payment.amount}${m?.priceDrop ? ` (€${m.priceDrop} under your starting price)` : ""}`);
+      notify({ type: "bought", amount: payment.amount, item: item?.name, captureId, priceDrop: m?.priceDrop });
     } else {
       log("bought", `Bought ${item?.name} for €${payment.amount}`);
     }
@@ -272,6 +275,7 @@ export async function refreshPayout(payment) {
       pond.paidOutAt = payment.completedAt;
     }
     log("payout", `PayPal confirmed: €${payment.amount} from ${pond?.name || "your pond"} delivered.`);
+    notify({ type: "payout", amount: payment.amount, pond });
   } else if (PAYOUT_FAILED.includes(status)) {
     payment.status = "failed";
     if (pond) pond.pendingWithdrawal = 0;

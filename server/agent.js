@@ -1,7 +1,7 @@
 // Pondr's AI: the checkout duck, the chat buddy, and the Wait & Watch agent.
 // Code supplies every number; Claude decides and writes; server tools enforce limits.
 import { askJSON, runAgent, AIUnavailable } from "./llm.js";
-import { getDb, save, log, id, product, activePond, mandateEvent } from "./store.js";
+import { getDb, save, log, id, product, activePond, mandateEvent, notify } from "./store.js";
 import { financeSnapshot, mandateConditions, daysOfSaving, round2, pondFor } from "./money.js";
 import { searchMarket } from "./channel3.js";
 import { startOrder } from "./payments.js";
@@ -112,7 +112,67 @@ const CHAT_TOOLS = [
     description: "List the user's Wait & Watch mandates and their status.",
     input_schema: { type: "object", properties: {}, additionalProperties: false },
   },
+  {
+    name: "propose_setup",
+    description:
+      "Propose the user's personal settings after they describe them: first name, the goal they are saving for and its target in EUR, monthly income, how much they can save per month, and a monthly fun budget for wants. This does NOT save anything; the user must confirm a card. Only include fields the user actually stated.",
+    input_schema: {
+      type: "object",
+      properties: {
+        name: { type: "string" },
+        goal_name: { type: "string", description: "e.g. Apartment fund, Trip to Japan" },
+        goal_target: { type: "number" },
+        monthly_income: { type: "number" },
+        monthly_savings_pace: { type: "number" },
+        monthly_fun_budget: { type: "number" },
+      },
+      additionalProperties: false,
+    },
+  },
 ];
+
+// Validated, unsaved settings proposal. Applied only by an explicit user confirmation.
+export function proposeSetup(input) {
+  const num = (v, max) => (v === undefined || v === null || v === "" ? undefined : Math.min(Math.max(round2(Number(v)) || 0, 0), max));
+  const p = {
+    name: input.name ? String(input.name).trim().slice(0, 30) : undefined,
+    goalName: input.goal_name ? String(input.goal_name).trim().slice(0, 40) : undefined,
+    goalTarget: num(input.goal_target, 1000000),
+    monthlyIncome: num(input.monthly_income, 1000000),
+    monthlySavingsPace: num(input.monthly_savings_pace, 100000),
+    monthlyFunBudget: num(input.monthly_fun_budget, 100000),
+  };
+  for (const k of Object.keys(p)) if (p[k] === undefined || p[k] === 0 && k !== "monthlyFunBudget") delete p[k];
+  if (!Object.keys(p).length) throw new Error("Nothing to set up yet. Ask the user about their goal, savings pace or fun budget.");
+  getDb().pendingSetup = { ...p, proposedAt: new Date().toISOString() };
+  save();
+  notify({ type: "setup", setup: getDb().pendingSetup });
+  return { status: "shown to the user for confirmation, not saved yet", proposal: p };
+}
+
+export function confirmSetup() {
+  const db = getDb();
+  const p = db.pendingSetup;
+  if (!p) throw new Error("Nothing to confirm");
+  const u = db.user;
+  if (p.name) u.name = p.name;
+  if (p.monthlyIncome) u.monthlyIncome = p.monthlyIncome;
+  if (p.monthlySavingsPace) u.monthlySavingsPace = p.monthlySavingsPace;
+  if (p.monthlyFunBudget !== undefined) u.monthlyFunBudget = p.monthlyFunBudget;
+  if (p.goalName || p.goalTarget) {
+    const pond = db.ponds.find((x) => x.id === db.activePondId) || db.ponds[0];
+    if (p.goalName && p.goalName.toLowerCase() !== pond.name.toLowerCase()) {
+      const fresh = { id: id("pond"), name: p.goalName, target: p.goalTarget || 500, balance: 0, pendingWithdrawal: 0, createdAt: new Date().toISOString() };
+      db.ponds.push(fresh);
+      db.activePondId = fresh.id;
+    } else if (p.goalTarget) pond.target = p.goalTarget;
+  }
+  db.pendingSetup = null;
+  db.setupConfirmedAt = new Date().toISOString();
+  save();
+  log("pond", `Settings confirmed: ${[p.goalName && `goal ${p.goalName}`, p.goalTarget && `€${p.goalTarget} target`, p.monthlySavingsPace && `€${p.monthlySavingsPace}/month saving`, p.monthlyFunBudget !== undefined && `€${p.monthlyFunBudget} fun budget`].filter(Boolean).join(", ")}`);
+  return db.user;
+}
 
 export function createMandate({ product_id, max_price, deadline_days, cool_off_hours, min_pond_progress_pct }) {
   const item = product(product_id);
@@ -171,6 +231,8 @@ async function runChatTool(name, input) {
       return searchMarket(input.query, { maxPrice: input.max_price });
     case "create_watch":
       return createMandate(input);
+    case "propose_setup":
+      return proposeSetup(input);
     case "list_watches":
       return db.mandates.map(({ id, productName, maxPrice, deadline, status, lastNote }) => ({ id, productName, maxPrice, deadline, status, lastNote }));
     default:
@@ -186,9 +248,17 @@ export async function chat(userText) {
   let source = "ai";
   try {
     const history = db.chat.slice(-12).map((m) => ({ role: m.role, content: m.text }));
+    const recent = db.activity.slice(0, 6).map((a) => `- ${a.at.slice(0, 16).replace("T", " ")}: ${a.text}`).join("\n");
     const result = await runAgent({
       system: `${PERSONA}
+USER: ${db.user.name}. GOAL: ${(db.ponds.find((x) => x.id === db.activePondId) || db.ponds[0]).name} (target €${(db.ponds.find((x) => x.id === db.activePondId) || db.ponds[0]).target}).
+SAVED SETTINGS (already confirmed): saving €${db.user.monthlySavingsPace}/month, fun budget €${db.user.monthlyFunBudget}/month, income €${db.user.monthlyIncome}/month.
+PENDING CARD: ${db.pendingSetup ? "yes, waiting for the user to confirm" : "none; nothing is waiting for confirmation"}.
+RECENT ACTIVITY (verified records, newest first):
+${recent}
 You can look up the user's finances, the demo store and live market prices, and set up Wait & Watch mandates.
+Get to know the user like a friend would: what they are saving for, roughly what comes in, how much they can put aside each month, and how much they want to keep for fun. When they tell you any of this, call propose_setup and tell them to confirm the card. Never say settings are saved until they confirm.
+Refer to things the user actually did (RECENT ACTIVITY below) when relevant, e.g. a recent pond or purchase. Never invent past events.
 When the user says they want something "cheaper", "later" or "when I can afford it", offer or create a watch.
 Pondr can only buy from the Pondr Demo Store; market prices from other retailers are for comparison only.
 Never pressure the user to buy. Deciding not to buy is a good outcome.
@@ -279,7 +349,10 @@ export async function evaluateMandate(mandate) {
       mandate.lastNote = note;
       if (note && cond.priceOk) mandateEvent(mandate, "waiting", note);
       save();
-      if (note && cond.priceOk) log("waiting", `${mandate.productName}: ${note}`);
+      if (note && cond.priceOk) {
+        log("waiting", `${mandate.productName}: ${note}`);
+        notify({ type: "waiting", mandate, note });
+      }
     }
     return { action: "waiting", cond };
   }
@@ -327,6 +400,7 @@ export async function evaluateMandate(mandate) {
     mandateEvent(mandate, "prepared", `All rules met. PayPal order prepared for €${current}; €${receipt.budget.remainingAfter} of the fun budget left after. Waiting for your approval.`, { orderId: payment.orderId });
     save();
     log("ready", `Your rules are met for ${mandate.productName} at €${current}. Waiting for your approval.`);
+    notify({ type: "ready", mandate, payment });
     return { approvalLink: `/approve.html?payment=${payment.id}` };
   };
 

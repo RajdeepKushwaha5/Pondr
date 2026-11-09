@@ -303,3 +303,10 @@ details.tl-wrap[open] summary::before { content: "▾ "; }
 .scenario b { display: block; font: 700 15px var(--display); letter-spacing: -.01em; }
 .scenario small { color: var(--muted); font-size: 12px; }
 .scenario .n { font: 500 10px var(--mono); color: var(--duck-deep); letter-spacing: .08em; }
+
+/* Phone companion + onboarding card */
+.tg-link { display: grid; grid-template-columns: 140px 1fr; gap: 16px; align-items: center; }
+@media (max-width: 520px) { .tg-link { grid-template-columns: 1fr; } }
+.qr { width: 140px; height: 140px; padding: 4px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); display: grid; place-items: center; }
+.setup-card { border: 1px solid var(--duck); background: #fff8e6; border-radius: 16px; padding: 12px 14px; margin: 10px 0 4px; }
+.setup-card .kv { margin: 8px 0 10px; }

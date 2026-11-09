@@ -25,3 +25,5 @@ services:
         sync: false
       - key: CHANNEL3_API_KEY
         sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false

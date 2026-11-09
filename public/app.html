@@ -59,7 +59,9 @@
       <section class="panel col-5 chat">
         <div class="panel-head"><h2>Talk to Pondr</h2><span class="eyebrow" id="chatMode"></span></div>
         <div class="chat-log" id="chatLog"></div>
+        <div id="setupCard"></div>
         <div class="suggest" id="suggest">
+          <button>I'm saving €600 for an apartment. I can put €300 aside a month and want €250 for fun.</button>
           <button>Where did my money go?</button>
           <button>Watch the headphones for 75</button>
           <button>Any subscriptions I forgot?</button>
@@ -85,12 +87,17 @@
         <ul class="feed" id="activity"></ul>
       </section>
 
-      <section class="panel col-4">
+      <section class="panel col-6 phone">
+        <div class="panel-head"><h2>Pondr on your phone</h2><span class="eyebrow">Telegram</span></div>
+        <div id="telegram"></div>
+      </section>
+
+      <section class="panel col-6">
         <div class="panel-head"><h2>Monthly auto-pond</h2><span class="eyebrow">PayPal Subscriptions</span></div>
         <div id="autopond"></div>
       </section>
 
-      <section class="panel controls col-8">
+      <section class="panel controls col-12">
         <div class="panel-head"><h2>Demo controls</h2><span class="eyebrow">Simulations · this visitor only</span></div>
         <p class="small muted" style="margin:-6px 0 14px">Each visitor gets their own Ana. Start with a guided scenario, or use the controls to simulate time and prices.</p>
         <div class="scenarios">
@@ -116,6 +123,7 @@
 
   <footer class="footer"><span>Pondr · PayPal sandbox · goal ponds are an app ledger, not a bank account · no real money moves</span><span>Made for the PayPal AI Hackathon 2026</span></footer>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script src="/icons.js"></script>
   <script src="/common.js"></script>
   <script src="/app.js"></script>

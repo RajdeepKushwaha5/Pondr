@@ -113,6 +113,48 @@ function renderInsights() {
     ${i.demoData ? `<p class="small muted" style="margin:12px 0 0">Seeded demo history plus purchases you make in the demo store.</p>` : ""}`;
 }
 
+
+// ---------- Pondr on your phone (Telegram) ----------
+let linkInfo = null;
+function renderTelegram() {
+  const t = state.telegram || { mode: "off" };
+  const el = document.getElementById("telegram");
+  if (t.mode !== "live") {
+    el.innerHTML = `<p class="small" style="margin-top:0">The duck can message you first: when a watch is ready, when your budget says wait, and when PayPal confirms a payment. You can approve, let it go, or pond from your phone.</p>
+      <p class="small muted">${t.mode === "error" ? "Telegram couldn't start. Check TELEGRAM_BOT_TOKEN." : "Not enabled on this server yet (TELEGRAM_BOT_TOKEN missing)."}</p>`;
+    return;
+  }
+  if (t.linked) {
+    el.innerHTML = `<p style="margin-top:0">${icon("check", 16)} Connected${t.name ? ` as <b>${esc(t.name)}</b>` : ""} to <b>@${esc(t.bot)}</b>.</p>
+      <p class="small muted">Pondr will message you first. Try /checkin, /pond 20 or just chat.</p>
+      <div class="row"><button class="btn dark sm" id="tgCheckin">${icon("send", 14)} Send me a check-in</button><button class="btn outline sm" id="tgUnlink">Disconnect</button></div>`;
+    document.getElementById("tgCheckin").onclick = async () => { try { await api("/api/telegram/checkin", {}); toast("Check-in sent to your phone"); } catch (e) { toast(e.message); } };
+    document.getElementById("tgUnlink").onclick = async () => { await api("/api/telegram/unlink", {}); linkInfo = null; refresh(); };
+    return;
+  }
+  el.innerHTML = linkInfo
+    ? `<div class="tg-link"><div id="tgQr" class="qr"></div><div><p style="margin-top:0"><b>Scan with your phone</b> or open the link. It carries a one-time code (valid 10 min), so no passwords go through chat.</p>
+        <p><a class="btn dark sm" href="${esc(linkInfo.url)}" target="_blank" rel="noopener">Open @${esc(linkInfo.bot)}</a></p><p class="small muted">Code <code>${esc(linkInfo.code)}</code>. This panel updates once you tap Start.</p></div></div>`
+    : `<p class="small" style="margin-top:0">Get the duck on your phone. It messages you first when something happens, and you can approve, let it go, or pond right from Telegram.</p>
+      <button class="btn dark" id="tgLink">${icon("send", 16)} Connect Telegram</button>`;
+  if (linkInfo && window.QRCode) new QRCode(document.getElementById("tgQr"), { text: linkInfo.url, width: 132, height: 132, colorDark: "#15171b", colorLight: "#fffdf8" });
+  const b = document.getElementById("tgLink");
+  if (b) b.onclick = async () => { try { linkInfo = await api("/api/telegram/link", {}); renderTelegram(); } catch (e) { toast(e.message); } };
+}
+
+// ---------- Onboarding confirmation card (the AI proposes, you confirm) ----------
+function renderSetup() {
+  const p = state.pendingSetup;
+  const el = document.getElementById("setupCard");
+  if (!p) { el.innerHTML = ""; return; }
+  const row = (k, v) => (v === undefined || v === null ? "" : `<span>${k}</span><b class="mono">${v}</b>`);
+  el.innerHTML = `<div class="setup-card"><div class="eyebrow">Confirm before I save</div>
+    <div class="kv">${row("Name", p.name && esc(p.name))}${row("Goal", p.goalName && esc(p.goalName))}${row("Target", p.goalTarget && eur(p.goalTarget))}${row("Income", p.monthlyIncome && `${eur(p.monthlyIncome)}/mo`)}${row("Saving", p.monthlySavingsPace && `${eur(p.monthlySavingsPace)}/mo`)}${row("Fun budget", p.monthlyFunBudget !== undefined && `${eur(p.monthlyFunBudget)}/mo`)}</div>
+    <div class="row"><button class="btn dark sm" id="setupOk">${icon("check", 14)} Looks right, save</button><button class="btn outline sm" id="setupNo">Not right</button></div></div>`;
+  document.getElementById("setupOk").onclick = async () => { await api("/api/setup/confirm", {}); toast("Saved. Pondr will use these from now on."); refresh(); };
+  document.getElementById("setupNo").onclick = async () => { await api("/api/setup/dismiss", {}); refresh(); };
+}
+
 function renderBudget() {
   const b = state.budget;
   const pct = b.budget > 0 ? Math.max(0, Math.min(100, (b.remaining / b.budget) * 100)) : 0;
@@ -176,6 +218,8 @@ async function refresh() {
   renderInsights();
   renderAutopond();
   renderBudget();
+  renderTelegram();
+  renderSetup();
   renderActivity();
   renderDemo();
 }
@@ -265,4 +309,5 @@ if ([...params.keys()].length) history.replaceState(null, "", "/app.html");
 
 refresh();
 setInterval(() => { if (!pending) refresh(); }, 15000);
+setInterval(() => { if (linkInfo && !state?.telegram?.linked && !pending) refresh(); }, 3000);
 requestAnimationFrame(animate);
