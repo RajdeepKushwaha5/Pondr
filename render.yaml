@@ -1,0 +1,27 @@
+# Render Blueprint: New → Blueprint → pick this repo. Secrets are entered in the
+# Render dashboard (sync: false) and never stored in the repository.
+services:
+  - type: web
+    name: pondr
+    runtime: node
+    plan: free
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /healthz
+    envVars:
+      - key: CURRENCY
+        value: EUR
+      - key: GROQ_MODEL
+        value: openai/gpt-oss-120b
+      - key: GROQ_API_KEY
+        sync: false
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: PAYPAL_PAYOUT_RECEIVER
+        sync: false
+      - key: PAYPAL_WEBHOOK_ID
+        sync: false
+      - key: CHANNEL3_API_KEY
+        sync: false

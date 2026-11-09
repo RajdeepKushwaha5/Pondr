@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pondr</title>
+  <meta name="description" content="Pondr: think before you pay. An AI agent that turns impulse checkouts into goals, built on PayPal and Claude.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div id="header"></div>
+
+  <main class="wrap">
+    <section class="hero">
+      <div class="greeting panel" style="background:transparent;border:0;padding:8px 4px">
+        <span class="eyebrow" id="today"></span>
+        <h1 id="hello">Hey there. Think <span class="serif">before</span> you pay.</h1>
+        <p id="helloSub">Every impulse you pond moves you closer to your goal. Every watch turns a "want" into a planned buy.</p>
+        <div class="row" style="margin-top:22px">
+          <a class="btn dark" href="/store.html"><span id="icShop"></span>Open the demo store</a>
+          <button class="btn outline" id="newPondBtn"><span id="icPlus"></span>New pond</button>
+        </div>
+      </div>
+
+      <section class="panel pond" aria-label="Your pond">
+        <div class="pond-top">
+          <div class="row"><select class="pond-select" id="pondSelect" aria-label="Active pond"></select><span class="spacer"></span><span class="eyebrow" id="pondPct"></span></div>
+          <div class="figure" id="pondAmount"></div>
+          <div class="pond-meta" id="pondMeta"></div>
+        </div>
+        <div class="water" id="water">
+          <div class="target-line">Goal</div>
+          <svg class="waves" viewBox="0 0 600 200" preserveAspectRatio="none" aria-hidden="true">
+            <path id="w1" fill="#127c8a" opacity=".22"></path>
+            <path id="w2" fill="#127c8a" opacity=".55"></path>
+            <path id="w3" fill="#0b4f5c"></path>
+          </svg>
+          <div class="floater" id="floater"></div>
+          <div class="pond-actions">
+            <button class="btn outline sm" id="payoutBtn"><span id="icGift"></span>Pay out to PayPal</button>
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <div class="grid">
+      <section class="panel ink col-7 watch-panel" id="watches">
+        <div class="panel-head"><h2>Wait &amp; Watch</h2><span class="eyebrow">Agent mandates</span></div>
+        <ul class="list" id="mandates"></ul>
+        <div class="how">
+          <div><span class="n">01</span><b>You set the rules</b>Max price, cooling-off, deadline. Every buy must fit your fun budget.</div>
+          <div><span class="n">02</span><b>Pondr watches</b>It tracks the price, compares the market, and tells you what it's waiting for.</div>
+          <div><span class="n">03</span><b>You approve</b>It prepares a PayPal order. Nothing is paid without your tap.</div>
+        </div>
+      </section>
+
+      <section class="panel col-5 chat">
+        <div class="panel-head"><h2>Talk to Pondr</h2><span class="eyebrow" id="chatMode"></span></div>
+        <div class="chat-log" id="chatLog"></div>
+        <div class="suggest" id="suggest">
+          <button>Where did my money go?</button>
+          <button>Watch the headphones for 75</button>
+          <button>Any subscriptions I forgot?</button>
+        </div>
+        <form class="chat-form" id="chatForm">
+          <input id="chatInput" placeholder="Ask anything, or tell me what you want…" autocomplete="off" aria-label="Message Pondr">
+          <button class="btn dark sm" aria-label="Send"><span id="icSend"></span></button>
+        </form>
+      </section>
+
+      <section class="panel col-4">
+        <div class="panel-head"><h2>Fun budget</h2><span class="eyebrow">Your rule</span></div>
+        <div id="budget"></div>
+      </section>
+
+      <section class="panel col-4">
+        <div class="panel-head"><h2>Last 30 days</h2><span class="eyebrow">Spending</span></div>
+        <div id="insights"></div>
+      </section>
+
+      <section class="panel col-4">
+        <div class="panel-head"><h2>Activity</h2></div>
+        <ul class="feed" id="activity"></ul>
+      </section>
+
+      <section class="panel col-4">
+        <div class="panel-head"><h2>Monthly auto-pond</h2><span class="eyebrow">PayPal Subscriptions</span></div>
+        <div id="autopond"></div>
+      </section>
+
+      <section class="panel controls col-8">
+        <div class="panel-head"><h2>Demo controls</h2><span class="eyebrow">Simulations · this visitor only</span></div>
+        <p class="small muted" style="margin:-6px 0 14px">Each visitor gets their own Ana. Start with a guided scenario, or use the controls to simulate time and prices.</p>
+        <div class="scenarios">
+          <button class="scenario" data-scenario="ready"><span class="n">SCENARIO 1</span><b>Ready to buy</b><small>Every rule passes. See the receipt, then approve in PayPal.</small></button>
+          <button class="scenario" data-scenario="budget"><span class="n">SCENARIO 2</span><b>Budget says wait</b><small>The price is right, but it doesn't fit the fun budget.</small></button>
+          <button class="scenario" data-scenario="changed-mind"><span class="n">SCENARIO 3</span><b>Changed my mind</b><small>The order is ready. Let it go, nothing is spent.</small></button>
+        </div>
+        <div class="row">
+          <select id="dropProduct" aria-label="Product"></select>
+          <input id="dropPrice" type="number" min="1" step="1" style="width:110px" placeholder="New price" aria-label="New price">
+          <button class="btn dark sm" id="dropBtn"><span id="icTag"></span>Change price</button>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <button class="btn outline sm" id="skipBtn"><span id="icClock"></span>Skip ahead a day</button>
+          <button class="btn outline sm" id="paydayBtn"><span id="icCal"></span>Run monthly cycle</button>
+          <span class="spacer"></span>
+          <button class="btn outline sm" id="resetBtn"><span id="icReset"></span>Reset my demo</button>
+        </div>
+        <p class="small muted" id="modeNote" style="margin:12px 0 0"></p>
+      </section>
+    </div>
+  </main>
+
+  <footer class="footer"><span>Pondr · PayPal sandbox · goal ponds are an app ledger, not a bank account · no real money moves</span><span>Made for the PayPal AI Hackathon 2026</span></footer>
+
+  <script src="/icons.js"></script>
+  <script src="/common.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>

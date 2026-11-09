@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pondr: think before you pay</title>
+  <meta name="description" content="Pondr is an AI agent that turns impulse checkouts into goals, then buys it for you when you can actually afford it. Built on PayPal.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/landing.css">
+</head>
+<body>
+  <div id="header"></div>
+
+  <!-- HERO -->
+  <section class="l-hero">
+    <div class="l-wrap l-hero-grid">
+      <div>
+        <span class="l-tag reveal"><b>New</b> An AI money buddy that lives at checkout</span>
+        <h1 class="l-title reveal d1">
+          <span class="line">Think</span>
+          <span class="line"><span class="serif">before</span> you</span>
+          <span class="line">pay<span class="dot">.</span></span>
+        </h1>
+        <p class="l-lede reveal d2">Money doesn't leak in the big decisions. <b>It leaks at checkout.</b> Pondr taps you on the shoulder right before you pay, turns the impulse into a goal, and only prepares the purchase later if it still fits the rules you set.</p>
+        <div class="l-cta reveal d3">
+          <a class="btn dark lg" href="/app.html" id="ctaTry">Try it as Ana <span id="icA"></span></a>
+          <a class="btn outline lg" href="/store.html?open=p_headphones">See the duck in action</a>
+        </div>
+        <div class="l-proof reveal d3">
+          <span id="pp1"></span><span id="pp2"></span><span id="pp3"></span>
+        </div>
+      </div>
+
+      <div class="l-mock reveal d2" aria-hidden="true">
+        <span class="sticker s1">Real numbers</span>
+        <span class="sticker s2">You still press pay</span>
+        <div class="duck-modal">
+          <div class="duck-peek" id="mockDuck"></div>
+          <span class="eyebrow">Before you pay</span>
+          <h3>€89 = <em>9 days</em> of your Apartment fund</h3>
+          <p>Hey Ana, quick check before you pay. These can go to your pond instead, or I can watch for a better price.</p>
+          <div class="meter">
+            <div class="meter-track"><div class="now" style="width:23%"></div><div class="add" style="left:23%;width:15%"></div></div>
+            <div class="meter-legend"><span>Apartment fund 23%</span><span>→ 38% if ponded</span></div>
+          </div>
+          <div class="choices" id="mockChoices"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="l-pond" aria-hidden="true">
+      <svg class="waves" viewBox="0 0 1440 190" preserveAspectRatio="none">
+        <path id="lw1" fill="#127c8a" opacity=".18"></path>
+        <path id="lw2" fill="#127c8a" opacity=".45"></path>
+        <path id="lw3" fill="#0b4f5c"></path>
+      </svg>
+      <div class="swimmer"><div id="swimDuck"></div></div>
+    </div>
+  </section>
+
+  <!-- TICKER -->
+  <div class="ticker" aria-hidden="true"><div class="ticker-track" id="ticker"></div></div>
+
+  <!-- CALCULATOR -->
+  <section class="l-sec">
+    <div class="l-wrap">
+      <span class="l-kicker reveal">01 · The moment</span>
+      <h2 class="l-h2 reveal d1">What does that cart <span class="serif">really</span> cost?</h2>
+      <div class="calc">
+        <div class="calc-card reveal d1">
+          <label class="field">Your cart total
+            <div class="range-row"><input id="calcRange" type="range" min="5" max="400" step="1" value="89" aria-label="Cart total"><output id="calcVal">€89</output></div>
+          </label>
+          <div class="presets" id="presets">
+            <button data-v="12">Late-night snack · €12</button>
+            <button data-v="45">Desk lamp · €45</button>
+            <button data-v="89" class="on">Headphones · €89</button>
+            <button data-v="249">"It's on sale" · €249</button>
+          </div>
+          <p class="small muted" style="margin:18px 0 0">Based on Ana's real saving pace of <b id="paceTxt">€300</b>/month toward her <b id="goalTxt">Apartment fund</b>. Pondr does this maths in code, never in the AI.</p>
+        </div>
+        <div class="reveal d2">
+          <div class="calc-out">= <span class="num" id="calcDays">9</span> <span id="calcUnit">days</span><span class="serif" id="calcGoal">of your Apartment fund.</span></div>
+          <div class="meter calc-meter">
+            <div class="meter-track" style="height:16px"><div class="now" id="cNow" style="width:23%"></div><div class="add" id="cAdd" style="left:23%;width:15%"></div></div>
+            <div class="meter-legend"><span id="cL">Today 23%</span><span id="cR">38% if you pond it</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- THREE CHOICES -->
+  <section class="l-sec tight" style="padding-top:0">
+    <div class="l-wrap">
+      <span class="l-kicker reveal">02 · Three buttons</span>
+      <h2 class="l-h2 reveal d1">Not <span class="serif">no.</span> Just a better yes.</h2>
+      <div class="cards3">
+        <article class="c3 yellow reveal">
+          <span class="n">A · POND IT</span>
+          <h3>Pay your future.</h3>
+          <p>You still press pay and get the rush. A real PayPal sandbox checkout, recorded in your goal ledger.</p>
+          <div class="viz"><div class="viz-pond"><span>Apartment fund</span><div></div></div></div>
+        </article>
+        <article class="c3 ink reveal d1">
+          <span class="n">B · WAIT &amp; WATCH</span>
+          <h3>Not yet. Later, cheaper.</h3>
+          <p>Set a max price, a cooling-off time and a fun budget. The agent prepares a PayPal order only when all of them check out. You decide.</p>
+          <div class="viz viz-spark">
+            <svg viewBox="0 0 300 120" preserveAspectRatio="none">
+              <line x1="0" y1="84" x2="300" y2="84" stroke="#f5b83d" stroke-width="1.5" stroke-dasharray="5 6"/>
+              <text x="4" y="78" fill="#f5b83d" font-family="Geist Mono" font-size="11">YOUR MAX €75</text>
+              <polyline class="path" fill="none" stroke="#fffdf8" stroke-width="2.5" stroke-linejoin="round" points="0,30 30,26 60,40 90,34 120,48 150,44 180,62 210,58 240,80 270,94"/>
+              <circle cx="270" cy="94" r="6" fill="#f5b83d"/>
+            </svg>
+          </div>
+        </article>
+        <article class="c3 reveal d2">
+          <span class="n">C · BUY NOW</span>
+          <h3>Your call. No guilt.</h3>
+          <p>Some things are worth it. Pondr gets out of the way, and stays quiet on essentials like groceries and rent.</p>
+          <div class="viz viz-buy"><div><span>Weekly groceries</span><b>no duck</b></div><div><span>Rent</span><b>no duck</b></div><div><span>3am sneakers</span><b style="color:var(--beak)">duck</b></div></div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- AGENT TIMELINE -->
+  <section class="l-sec l-ink">
+    <div class="l-wrap tl-grid">
+      <div>
+        <span class="l-kicker reveal">03 · The agent</span>
+        <h2 class="l-h2 reveal d1">An agent that knows how to <span class="serif">wait.</span></h2>
+        <p class="l-sub reveal d2" style="margin-top:22px">Wait &amp; Watch turns "I want it" into a mandate the agent can act on, within limits you set. It checks the price, your cooling-off time and your fun budget, and explains whatever is holding it back. When everything fits, it prepares the PayPal order and stops. The last step is always yours, and "let it go" is always an option.</p>
+        <a class="btn yellow lg reveal d3" href="/app.html" style="margin-top:20px">Watch something <span id="icB"></span></a>
+      </div>
+      <ol class="tl" id="timeline"></ol>
+    </div>
+  </section>
+
+  <!-- GUARDRAILS -->
+  <section class="l-sec">
+    <div class="l-wrap">
+      <span class="l-kicker reveal">04 · Trust</span>
+      <h2 class="l-h2 reveal d1">Smart about money. <span class="serif">Strict</span> about limits.</h2>
+      <div class="guard">
+        <div class="yes reveal"><h3><span id="icYes"></span>What the AI does</h3><ul id="yesList"></ul></div>
+        <div class="no reveal d1"><h3><span id="icNo"></span>What it can never do</h3><ul id="noList"></ul></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PAYPAL SPEC -->
+  <section class="l-sec tight" style="padding-top:0">
+    <div class="l-wrap">
+      <span class="l-kicker reveal">05 · Under the hood</span>
+      <h2 class="l-h2 reveal d1">Every euro moves through <span class="serif">PayPal.</span></h2>
+      <div class="spec reveal d2" id="spec"></div>
+    </div>
+  </section>
+
+  <!-- FINAL -->
+  <section class="l-final">
+    <div class="l-wrap">
+      <div class="duck-big" id="bigDuck"></div>
+      <h2 class="reveal">Not no.<br><span class="serif">Not yet.</span></h2>
+      <div class="l-cta reveal d1" style="justify-content:center">
+        <a class="btn dark lg" href="/app.html">Open Pondr <span id="icC"></span></a>
+        <a class="btn outline lg" href="/store.html">Visit the demo store</a>
+      </div>
+      <footer class="l-foot" style="margin-top:110px">
+        <span>Pondr · PayPal AI Hackathon 2026 · Sandbox only, no real money moves</span>
+        <span>Math by code · words by AI · money by PayPal</span>
+      </footer>
+    </div>
+  </section>
+
+  <script src="/icons.js"></script>
+  <script src="/common.js"></script>
+  <script src="/landing.js"></script>
+</body>
+</html>

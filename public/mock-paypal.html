@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Simulated Approval</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="wrap" style="max-width:480px;padding-top:60px">
+    <div class="mockbar">Mock mode · no PayPal sandbox keys configured. This page simulates the PayPal approval step. It is not PayPal and no money moves.</div>
+    <section class="panel" style="margin-top:14px" id="box"><p class="muted">Loading…</p></section>
+  </main>
+  <script src="/common.js"></script>
+  <script>
+    (async () => {
+      const token = new URLSearchParams(location.search).get("token");
+      const box = document.getElementById("box");
+      try {
+        const o = await api(`/api/mock-paypal/${encodeURIComponent(token)}`);
+        box.innerHTML = `<span class="eyebrow">Simulated approval</span>
+          <div class="figure" style="font-size:48px">${eur(o.amount)}<small>${o.kind === "subscription" ? "/ month" : ""}</small></div>
+          <p class="muted">${esc(o.description || "Payday auto-pond")}</p>
+          <div class="row"><button class="btn dark" id="ok">Approve (simulated)</button><a class="btn outline" href="${esc(o.cancelUrl)}">Cancel</a></div>
+          <p class="small muted" style="margin-bottom:0">Token <code>${esc(token)}</code></p>`;
+        document.getElementById("ok").onclick = async () => {
+          const r = await api(`/api/mock-paypal/${encodeURIComponent(token)}/approve`, {});
+          location.href = r.redirect;
+        };
+      } catch (err) {
+        box.innerHTML = `<p>${esc(err.message)}</p>`;
+      }
+    })();
+  </script>
+</body>
+</html>

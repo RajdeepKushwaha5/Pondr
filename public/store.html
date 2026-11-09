@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pondr Demo Store</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div id="header"></div>
+  <main class="wrap">
+    <section class="store-hero">
+      <div>
+        <span class="eyebrow">Demo store · PayPal sandbox checkout</span>
+        <h1>Nice things, <span class="serif">bought</span> on purpose.</h1>
+      </div>
+      <p>A sample shop with real PayPal sandbox checkout. Press <b>Pay with PayPal</b> and Pondr steps in first, exactly like the browser extension does on any site.</p>
+    </section>
+    <div id="result"></div>
+    <section class="products" id="products"></section>
+  </main>
+  <footer class="footer"><span>Pondr Demo Store · sample products · no real money moves</span></footer>
+  <script src="/icons.js"></script>
+  <script src="/common.js"></script>
+  <script src="/duck.js"></script>
+  <script>
+    mountHeader("store");
+
+    async function render() {
+      const s = await getState();
+      document.getElementById("products").innerHTML = s.products
+        .map((p) => {
+          const off = p.price < p.listPrice ? Math.round((1 - p.price / p.listPrice) * 100) : 0;
+          return `<article class="product">
+            <div style="position:relative">${PondrUI.productArt(p.art, 210)}${off ? `<span class="sale">−${off}%</span>` : ""}</div>
+            <div class="meta"><span class="cat">${esc(p.category)}</span><h3>${esc(p.name)}</h3><span class="small muted">${esc(p.blurb || "")}</span></div>
+            <div class="foot"><span class="price">${eur(p.price)}${off ? `<s>${eur(p.listPrice)}</s>` : ""}</span>
+            <button class="btn paypal sm" data-id="${p.id}">Pay with PayPal</button></div>
+          </article>`;
+        })
+        .join("");
+      document.querySelectorAll("[data-id]").forEach((b) => (b.onclick = () => PondrDuck.open({ productId: b.dataset.id })));
+    }
+
+    async function showResult() {
+      const pid = new URLSearchParams(location.search).get("done");
+      if (!pid) return;
+      const { payment, pond } = await api(`/api/payments/${pid}`);
+      const ok = payment.status === "completed";
+      const title = ok ? (payment.kind === "pond" ? `${eur(payment.amount)} added to your ${esc(pond.name)} ledger.` : "Purchase complete.") : payment.status === "cancelled" ? "Payment cancelled." : "That didn't go through.";
+      const sub = ok && payment.kind === "pond" ? `You pressed pay, and it went to your goal. Sandbox payment to ${esc(payment.payee || "Pondr Demo Merchant")}.` : esc(payment.description);
+      document.getElementById("result").innerHTML = `<div class="notice">${PondrUI.duck(44, ok ? "happy" : "think")}
+        <div><b style="font-family:var(--display);font-size:18px;letter-spacing:-.02em">${title}</b><div class="small muted">${sub}${payment.captureId ? ` · capture <code>${esc(payment.captureId)}</code>` : ""}</div></div>
+        <span class="spacer"></span><a class="btn outline sm" href="/app.html">See my pond</a></div>`;
+      history.replaceState(null, "", "/store.html");
+      render();
+    }
+
+    render();
+    showResult();
+    // Deep link for demos and the README: /store.html?open=p_headphones
+    const openId = new URLSearchParams(location.search).get("open");
+    if (openId) PondrDuck.open({ productId: openId });
+  </script>
+</body>
+</html>

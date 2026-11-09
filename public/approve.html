@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Approve Purchase</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="/styles.css">
+  <style>
+    .rules { list-style: none; padding: 0; margin: 16px 0; display: grid; gap: 8px; }
+    .rules li { display: flex; gap: 10px; align-items: center; font-size: 14px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; }
+    .rules li .ico { color: var(--good); }
+    .rules li.bad { border-color: #f0c9bf; background: #fbf0ec; }
+    .rules li.bad .ico { color: var(--bad); }
+    .rules b { font-family: var(--mono); font-weight: 600; margin-left: auto; }
+    .h2 { font: 700 34px/1.05 var(--display); letter-spacing: -.04em; margin: 8px 0 10px; }
+  </style>
+</head>
+<body>
+  <div id="header"></div>
+  <main class="wrap">
+    <section class="panel approve" id="box"><p class="muted">Loading…</p></section>
+  </main>
+  <script src="/icons.js"></script>
+  <script src="/common.js"></script>
+  <script>
+    mountHeader("");
+    const { icon, duck, productArt } = PondrUI;
+    const pid = new URLSearchParams(location.search).get("payment");
+    const hint = new URLSearchParams(location.search).get("hint");
+    const box = document.getElementById("box");
+
+    async function load() {
+      await getState();
+      try {
+        const { payment, mandate, product, budget, merchant, live } = await api(`/api/payments/${pid}`);
+        if (mandate?.status === "released") {
+          box.innerHTML = `<div class="row">${duck(56, "happy")}<div><h2 class="h2" style="font-size:28px;margin:0">You let it go.</h2>
+            <p class="muted" style="margin:4px 0 0">${esc(product.name)} isn't coming home, and ${eur(payment.amount)} stays free. That's a good outcome.</p></div></div>
+            <p><a class="btn dark" href="/app.html">Back to my ponds</a></p>`;
+          return;
+        }
+        if (payment.status === "completed") {
+          box.innerHTML = `${productArt(product.art, 200)}
+            <span class="eyebrow">Done · you approved it</span>
+            <h2 class="h2">Bought${mandate?.priceDrop ? `, <span class="serif" style="color:var(--pond)">${eur(mandate.priceDrop)} under</span> your starting price` : ""}.</h2>
+            <p class="muted">${esc(product.name)} for ${eur(payment.amount)}, paid through PayPal sandbox to ${esc(payment.payee || merchant)}.</p>
+            <div class="kv"><span>PayPal order</span><code>${esc(payment.orderId)}</code><span>Capture</span><code>${esc(payment.captureId)}</code></div>
+            ${mandate?.events?.length ? `<details class="tl-wrap" open><summary>What happened</summary>${timelineHtml(mandate.events)}</details>` : ""}
+            <p><a class="btn dark" href="/app.html">Back to my ponds</a></p>`;
+          return;
+        }
+        if (payment.status !== "awaiting_approval") {
+          box.innerHTML = `<div class="row">${duck(48, "calm")}<div><h2 class="h2" style="font-size:24px;margin:0">Not this time.</h2>
+            <p class="muted" style="margin:4px 0 0">${payment.status === "cancelled" ? esc(payment.error || "No problem. Pondr keeps watching, no pressure.") : esc(payment.error || payment.status)}</p></div></div>
+            <p><a class="btn outline" href="/app.html">Back</a></p>`;
+          return;
+        }
+        const mk = mandate.market?.results?.length ? mandate.market : null;
+        const same = mk ? mk.results.filter((r) => r.currency === (mk.storeCurrency || "EUR")) : [];
+        const best = same.length ? Math.min(...same.map((r) => r.price)) : null;
+        const others = mk ? mk.results.filter((r) => r.currency !== (mk.storeCurrency || "EUR")) : [];
+        const lv = live || { ok: true, budget, priceNow: payment.amount, priceOk: true, coolOffOk: true, budgetOk: true, pondOk: true, blockers: [] };
+        const left = Math.round((lv.budget.remaining - payment.amount) * 100) / 100;
+        const rule = (ok, t, v) => `<li class="${ok ? "" : "bad"}">${icon(ok ? "check" : "x", 16)}<span>${t}</span><b>${v}</b></li>`;
+        const src = mandate.summarySource === "ai" ? `Written by ${esc(window.PONDR_MODES?.aiName || "AI")}` : mandate.summarySource === "template" ? "Template summary (AI unavailable)" : "";
+        box.innerHTML = `${productArt(product.art, 200)}
+          <span class="eyebrow">Wait &amp; Watch · ${lv.ok ? "your rules are met" : "rules no longer met"}</span>
+          <h2 class="h2">Still want the ${esc(product.name)}?</h2>
+          ${mandate.summary ? `<p style="color:var(--ink-2);margin-bottom:4px">${esc(mandate.summary)}</p>${src ? `<p class="small muted" style="margin-top:0">${src}</p>` : ""}` : ""}
+          <p class="small muted" style="margin-bottom:0">Checked live, just now:</p>
+          <ul class="rules">
+            ${rule(lv.priceOk && lv.priceSame !== false, `Price at or below your max (${eur(mandate.maxPrice)})`, eur(lv.priceNow))}
+            ${rule(lv.coolOffOk, `Cooling-off of ${mandate.coolOffHours ?? 0}h has passed`, lv.coolOffOk ? "done" : "not yet")}
+            ${rule(lv.budgetOk, "Fits your fun budget", lv.budgetOk ? `${eur(left)} left after` : `${eur(Math.max(0, lv.budget.remaining))} left`)}
+            ${mandate.minPondProgressPct ? rule(lv.pondOk, `${esc(lv.pond?.name || "Goal pond")} at least ${mandate.minPondProgressPct}% full`, lv.pondOk ? "yes" : "no") : ""}
+          </ul>
+          ${receiptHtml(mandate.receipt)}
+          ${lv.ok ? "" : `<p class="notice" style="color:var(--bad)">${icon("x", 16)} ${esc(lv.blockers[0] || "Your rules are no longer met.")} Pondr won't complete this payment.</p>`}
+          <div class="compare">
+            <div><span>When you started</span><b>${eur(mandate.originalPrice)}</b></div>
+            ${best !== null ? `<div><span>Similar item elsewhere (${mk.source === "channel3" ? "Channel3" : "demo data"})</span><b>${eur(best)}</b></div>` : `<div><span>Your max</span><b>${eur(mandate.maxPrice)}</b></div>`}
+            <div class="win"><span>Pondr Demo Store now</span><b>${eur(payment.amount)}</b></div>
+          </div>
+          ${others.length ? `<p class="small muted">Similar items found (${mk.source === "channel3" ? "Channel3" : "demo data"}, other currencies, not converted): ${others.map((r) => `${money(r.price, r.currency)} at ${esc(r.domain || "?")}`).join(" · ")}</p>` : ""}
+          ${mk ? `<p class="small muted">Market checked ${new Date(mk.retrievedAt).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" })}. These are similar products, not necessarily the identical item; other retailers are comparison only. This order is with ${esc(merchant)}.</p>` : ""}
+          <p class="small muted" style="display:flex;gap:8px;align-items:center">${icon("lock", 14)} Pondr prepared this order but can't pay on its own. Your rules are checked again when you approve.</p>
+          <div class="row" style="margin-top:14px">
+            ${lv.ok ? `<a class="btn paypal" href="${esc(payment.approveUrl)}" style="flex:1">Yes, approve with PayPal · ${eur(payment.amount)}</a><a class="btn outline" href="/api/paypal/cancel?payment=${payment.id}">Not now</a>` : `<a class="btn outline" href="/api/paypal/cancel?payment=${payment.id}" style="flex:1">Cancel this order</a>`}
+            <button class="btn ${hint === "letgo" ? "yellow" : "outline"}" id="letgo">Let it go</button>
+          </div>
+          ${hint === "letgo" ? `<p class="small muted">Scenario 3: you've cooled off and don't want it anymore. Press <b>Let it go</b>.</p>` : ""}
+          ${mandate.events?.length ? `<details class="tl-wrap"><summary>Watch timeline · ${mandate.events.length} steps</summary>${timelineHtml(mandate.events)}</details>` : ""}`;
+        document.getElementById("letgo").onclick = async () => {
+          try { await api(`/api/mandates/${mandate.id}/release`, {}); } catch (e) { toast(e.message); }
+          load();
+        };
+      } catch (err) {
+        box.innerHTML = `<p>${esc(err.message)}</p>`;
+      }
+    }
+    load();
+  </script>
+</body>
+</html>

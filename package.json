@@ -1,0 +1,21 @@
+{
+  "name": "pondr",
+  "version": "0.1.0",
+  "description": "Pondr: an AI agent that turns impulse checkouts into goals, then buys it for you when you can actually afford it. Built on PayPal + Claude.",
+  "type": "module",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "reset": "node server/reset.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.4.0",
+    "dotenv": "^18.0.9",
+    "express": "^4.22.3"
+  }
+}

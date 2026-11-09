@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "Pondr: think before you pay",
+  "version": "0.1.0",
+  "description": "A friendly duck that taps you on the shoulder at checkout and turns impulse buys into goals.",
+  "permissions": ["storage"],
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "options_page": "options.html",
+  "action": { "default_title": "Pondr", "default_popup": "options.html" }
+}
