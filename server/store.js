@@ -29,7 +29,7 @@ export function seed() {
       monthlyFunBudget: 260,
       quietCategories: ["groceries", "rent", "utilities", "health", "subscriptions"],
     },
-    ponds: [{ id: "pond_apartment", name: "Apartment fund", target: 600, balance: 140, pendingWithdrawal: 0, createdAt: daysAgo(40) }],
+    ponds: [{ id: "pond_apartment", name: "Apartment fund", target: 600, balance: 140, pendingWithdrawal: 0, startingBalance: { amount: 140, source: "demo savings" }, createdAt: daysAgo(40) }],
     activePondId: "pond_apartment",
     products: [
       { id: "p_headphones", name: "Aurora ANC Headphones", blurb: "Over-ear, 40h battery, adaptive noise cancelling.", category: "electronics", price: 89, listPrice: 89, art: "headphones", impulse: true, searchQuery: "wireless noise cancelling headphones" },

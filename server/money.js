@@ -52,6 +52,21 @@ export function budgetSnapshot({ excludePaymentId } = {}) {
   return { budget, spent, committed, remaining: round2(budget - spent - committed) };
 }
 
+// ---------- Goal money: what can actually be paid out ----------
+// A goal's balance is progress: declared savings (held elsewhere, "you told Pondr" or demo),
+// simulated cycles, and real contributions. Only confirmed PayPal contributions can be paid
+// out, and that amount is derived from payment records, never from the balance itself.
+export function goalMoney(pond) {
+  const pays = getDb().payments.filter((p) => p.pondId === pond.id);
+  const sum = (xs) => round2(xs.reduce((s, p) => s + p.amount, 0));
+  const contributed = sum(pays.filter((p) => p.kind === "pond" && p.status === "completed"));
+  const paidOut = sum(pays.filter((p) => p.kind === "payout" && p.status === "completed"));
+  const pendingOut = sum(pays.filter((p) => p.kind === "payout" && ["submitting", "unknown", "pending"].includes(p.status)));
+  const available = round2(Math.max(0, contributed - paidOut - pendingOut));
+  const notWithdrawable = round2(Math.max(0, pond.balance - available - pendingOut));
+  return { progress: pond.balance, contributed, paidOut, pendingOut, available, notWithdrawable };
+}
+
 // Facts handed to the AI. Everything here is computed by code.
 export function financeSnapshot(amount, item) {
   const pond = activePond();

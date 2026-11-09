@@ -3,7 +3,7 @@
 import { config, modes } from "./config.js";
 import * as paypal from "./paypal.js";
 import { getDb, save, log, id, activePond, product, mandateEvent, notify } from "./store.js";
-import { round2, mandateConditions, daysOfSaving } from "./money.js";
+import { round2, mandateConditions, daysOfSaving, goalMoney } from "./money.js";
 
 export const MERCHANT = modes.paypal === "sandbox" ? "Pondr Demo Merchant (PayPal sandbox)" : "Pondr Demo Merchant (mock PayPal, no keys)";
 
@@ -228,8 +228,9 @@ export async function requestPayout(pond, receiver) {
   if (pond.pendingWithdrawal > 0 || db.payments.some((p) => p.kind === "payout" && p.pondId === pond.id && ["submitting", "unknown", "pending"].includes(p.status))) {
     throw new Error("A payout from this pond is already in progress");
   }
-  const amount = round2(pond.balance);
-  if (!(amount > 0)) throw new Error("Nothing to pay out");
+  // Only money that actually came in through PayPal can go back out. Declared savings stay where they are.
+  const amount = goalMoney(pond).available;
+  if (!(amount > 0)) throw new Error("Nothing to pay out yet: only contributions made through PayPal can be paid back. Savings you told Pondr about stay where they are.");
   const payment = { id: id("pay"), kind: "payout", amount, pondId: pond.id, receiver, senderBatchId: id("payout"), description: `Payout of ${pond.name}`, status: "submitting", createdAt: new Date().toISOString() };
   pond.pendingWithdrawal = amount;
   db.payments.unshift(payment);

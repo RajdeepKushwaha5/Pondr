@@ -7,7 +7,7 @@ import { getDb, save, log, reset, id, activePond, product, withSession, sessionI
 import { startOrder, capture, cancel, findPayment, findPaymentByOrder, applyCompleted, requestPayout, refreshPayout, reconcile, MERCHANT } from "./payments.js";
 import { duckDecision, chat, createMandate, releaseMandate, watchTick, confirmSetup } from "./agent.js";
 import { startTelegram, telegram as telegramInfo, telegramStatus, createLinkCode, unlinkTelegram, sendCheckin, setCheckins, runDueCheckins } from "./telegram.js";
-import { daysOfSaving, spendLast30, recurringCharges, budgetSnapshot, mandateConditions, pondFor, round2 } from "./money.js";
+import { daysOfSaving, spendLast30, recurringCharges, budgetSnapshot, mandateConditions, pondFor, goalMoney, round2 } from "./money.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -55,8 +55,12 @@ app.post(
         db.subscription.status = "ACTIVE";
       } else if (event.event_type === "PAYMENT.SALE.COMPLETED") {
         const pond = db.ponds.find((p) => p.id === db.subscription.pondId) || activePond();
-        pond.balance = round2(pond.balance + Number(r.amount?.total || db.subscription.amount));
-        log("payday", `Monthly auto-pond collected: €${r.amount?.total} into ${pond.name}`);
+        const amount = round2(Number(r.amount?.total || db.subscription.amount));
+        if (!db.payments.some((p) => p.captureId === r.id)) {
+          pond.balance = round2(pond.balance + amount);
+          db.payments.unshift({ id: id("pay"), kind: "pond", source: "subscription", amount, pondId: pond.id, status: "completed", captureId: r.id, description: `Monthly auto-pond to ${pond.name}`, createdAt: new Date().toISOString(), completedAt: new Date().toISOString() });
+          log("payday", `Monthly auto-pond collected by PayPal: €${amount} into ${pond.name}`);
+        }
       }
       db.processedEvents = [event.id, ...db.processedEvents].slice(0, 500);
       save();
@@ -99,8 +103,8 @@ app.get(
       merchant: MERCHANT,
       user: db.user,
       budget: budgetSnapshot(),
-      ponds: db.ponds,
-      activePond: activePond(),
+      ponds: db.ponds.map((p) => ({ ...p, money: goalMoney(p) })),
+      activePond: { ...activePond(), money: goalMoney(activePond()) },
       products: db.products,
       mandates: db.mandates,
       payments: db.payments.slice(0, 15),
@@ -476,9 +480,11 @@ app.post(
     const db = getDb();
     if (!db.subscription || !["ACTIVE", "APPROVED"].includes(db.subscription.status)) throw new Error("Set up auto-pond first");
     const pond = activePond();
+    // Simulated cycle: counts toward progress only (no PayPal capture, so not withdrawable).
     pond.balance = round2(pond.balance + db.subscription.amount);
+    pond.simulated = round2((pond.simulated || 0) + db.subscription.amount);
     save();
-    log("payday", `Simulated monthly cycle: €${db.subscription.amount} auto-ponded into ${pond.name}`);
+    log("payday", `Simulated monthly cycle: €${db.subscription.amount} added to ${pond.name} progress (not a real PayPal collection)`);
     res.json(pond);
   })
 );

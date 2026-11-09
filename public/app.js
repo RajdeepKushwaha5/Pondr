@@ -48,8 +48,9 @@ function renderPond() {
   }
   document.getElementById("helloSub").textContent = "Every impulse you pond moves you closer to your goal. Every watch turns a \"want\" into a planned buy.";
   document.getElementById("pondMeta").innerHTML =
-    `${p.startingBalance ? `<span><b>${eur(p.startingBalance.amount)}</b> start (you told Pondr)</span>` : ""}<span><b>${daysLeft ?? "–"}</b> days to go</span><span><b>${eur(state.user.monthlySavingsPace)}</b>/mo stated pace</span>${ponded ? `<span><b>${eur(ponded)}</b> ponded from impulses</span>` : ""}${p.pendingWithdrawal ? `<span style="color:var(--duck-deep)"><b>${eur(p.pendingWithdrawal)}</b> payout pending</span>` : ""}`;
-  document.getElementById("payoutBtn").disabled = !!p.pendingWithdrawal || p.balance <= 0;
+    `${p.startingBalance ? `<span><b>${eur(p.startingBalance.amount)}</b> start (${esc(p.startingBalance.source)})</span>` : ""}${p.money ? `<span><b>${eur(p.money.available)}</b> paid in via PayPal</span>` : ""}<span><b>${daysLeft ?? "–"}</b> days to go</span><span><b>${eur(state.user.monthlySavingsPace)}</b>/mo stated pace</span>${ponded ? `<span><b>${eur(ponded)}</b> ponded from impulses</span>` : ""}${p.pendingWithdrawal ? `<span style="color:var(--duck-deep)"><b>${eur(p.pendingWithdrawal)}</b> payout pending</span>` : ""}`;
+  document.getElementById("payoutBtn").disabled = !!p.pendingWithdrawal || !(p.money?.available > 0);
+  document.getElementById("payoutBtn").title = p.money?.available > 0 ? `Pay ${eur(p.money.available)} back to your PayPal` : "Only contributions made through PayPal can be paid back";
   document.getElementById("hello").innerHTML = `Hey ${esc(state.user.name)}. Think before you pay.`;
 }
 
@@ -250,7 +251,7 @@ document.getElementById("newPondBtn").onclick = async () => {
 
 document.getElementById("payoutBtn").onclick = async () => {
   const p = state.activePond;
-  if (!confirm(`Request a sandbox payout of ${eur(p.balance)} from ${p.name}? The balance only changes after PayPal confirms delivery.`)) return;
+  if (!confirm(`Pay ${eur(p.money.available)} back to your PayPal? That's what you put in through PayPal; savings you told Pondr about stay where they are. The balance changes once PayPal confirms delivery.`)) return;
   try { await api(`/api/ponds/${p.id}/payout`, {}); toast("Payout requested. The pond updates when PayPal confirms delivery."); refresh(); } catch (e) { toast(e.message); }
 };
 

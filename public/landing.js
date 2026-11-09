@@ -30,7 +30,7 @@ const spec = [
   ["Checkout", "Orders v2 · create → approve → capture", "Goal contributions, Buy now, and agent purchases. Rules are re-checked before every capture."],
   ["Webhooks", "Signature-verified events", "The goal only moves after a confirmed capture. Duplicates are ignored."],
   ["Subscriptions", "Product → plan → subscription", "A monthly contribution, saved before you can spend it."],
-  ["Payouts", "Payouts API · status polling", "Your goal stays yours: pay it back to your PayPal any time."],
+  ["Payouts", "Payouts API · status polling", "Contributions made through PayPal can be paid back to your PayPal any time."],
   ["Agent", "Server-side tools with guardrails", "The agent can prepare an order. It can never capture one."],
 ];
 document.getElementById("spec").innerHTML = spec.map(([a, b, c]) => `<div class="spec-row"><b>${a}</b><code>${b}</code><span>${c}</span></div>`).join("");

@@ -77,7 +77,7 @@
             ${p.itemName ? `<button class="btn dark" id="gmWatch">Keep an eye on the ${esc(p.itemName)}</button><button class="btn outline" id="gmGo">Let it go</button>` : ""}
             <a class="btn outline" href="/app.html">See my goal</a>
           </div>
-          <p class="gm-yours">It stays yours: pay your goal back to your PayPal any time with one tap (PayPal Payouts).</p>
+          <p class="gm-yours">It stays yours: what you put in through PayPal can be paid back to your PayPal any time (PayPal Payouts).</p>
           <p class="small muted" style="margin:6px 0 0">Goal-contribution prototype: ${window.PONDR_MODES?.paypal === "sandbox" ? "PayPal sandbox" : "mock"} payment to ${esc(p.payee || "Pondr Demo Merchant")}, recorded in your goal ledger · capture <code>${esc(p.captureId)}</code></p>
         </div></section>`;
       history.replaceState(null, "", "/store.html");
