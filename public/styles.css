@@ -440,3 +440,6 @@ input, select { border-radius: 8px; }
 .tl-mini time, details.tl-wrap summary { font-family: var(--ui); text-transform: none; letter-spacing: 0; font-size: 12px; }
 .mockbar { font: 600 12px/1.4 var(--ui); text-transform: none; letter-spacing: 0; }
 .toast { border-radius: 10px; }
+
+.goal-moment .btn.outline { background: transparent; border-color: #4a4e57; color: var(--paper); }
+.goal-moment .btn.outline:hover { background: #24272d; }

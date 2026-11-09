@@ -6,6 +6,8 @@ Pondr is a companion that knows what you are saving for. At checkout it shows wh
 
 Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/) with **PayPal (sandbox)** and an **LLM agent** (Groq gpt-oss-120b by default, Claude optional), plus **Channel3** product data.
 
+**▶ Demo video (2:54):** https://youtu.be/YcIhtljgUfE
+
 **Primary:** make a deliberate decision that respects your goal.
 **Secondary:** contribute to the goal, buy now, or wait for a planned purchase (Wait & Watch).
 
