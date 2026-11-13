@@ -1,6 +1,11 @@
 import "dotenv/config";
 
-const env = process.env;
+// Tolerate values pasted with spaces, line breaks or quotes (common in hosting dashboards).
+const clean = (v) => {
+  const t = String(v ?? "").trim().replace(/^["']|["']$/g, "").trim();
+  return /^(none|null|n\/a|-)$/i.test(t) ? "" : t;
+};
+const env = Object.fromEntries(Object.entries(process.env).map(([k, v]) => [k, clean(v)]));
 
 export const config = {
   port: Number(env.PORT || 3000),
