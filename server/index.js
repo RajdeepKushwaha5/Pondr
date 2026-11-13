@@ -1,4 +1,5 @@
 import express from "express";
+import crypto from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { config, modes } from "./config.js";
@@ -25,7 +26,9 @@ const wrap = (fn) => (req, res) =>
 
 // Health check for the host (no session is created).
 const telegramStatusMode = () => telegramInfo.mode;
-app.get("/healthz", (req, res) => res.json({ ok: true, paypal: modes.paypal, ai: modes.ai, channel3: modes.channel3, telegram: telegramStatusMode() }));
+const fp = (v) => (v ? `${v.length}:${crypto.createHash("sha256").update(v).digest("hex").slice(0, 8)}` : "unset");
+app.get("/healthz", (req, res) => res.json({ ok: true, paypal: modes.paypal, ai: modes.ai, channel3: modes.channel3, telegram: telegramStatusMode(), build: "trim-2",
+  keys: { paypalId: fp(config.paypal.clientId), paypalSecret: fp(config.paypal.clientSecret) } }));
 
 // ---- PayPal webhooks: no visitor cookie; strictly verified in sandbox mode ----
 // Mounted before the session middleware so it never creates demo sessions.
